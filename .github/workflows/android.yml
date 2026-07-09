@@ -20,17 +20,15 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    # إعداد وتثبيت Gradle بشكل مستقل على السيرفر لتجاوز غياب الـ Wrapper
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: 8.4
 
-    # منح صلاحيات تشغيل ملف البناء وإصلاح أي تعارض في أداة التشغيل
-    - name: Change wrapper permissions
-      run: chmod +x gradlew || true
-
+    # البناء باستخدام أمر gradle المثبت مباشرة على السيرفر (بدون ./gradlew) لتفادي خطأ 127
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --stacktrace
+      run: gradle assembleDebug --stacktrace
       
     - name: Upload Finished APK
       uses: actions/upload-artifact@v4
