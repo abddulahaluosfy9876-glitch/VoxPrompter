@@ -7,43 +7,15 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  explore:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    - name: Locate Android Project and Build APK
+    - name: List Repository Structure
       run: |
-        # البحث عن المجلد الذي يحتوي على ملف إعدادات الأندرويد الحقيقي
-        ANDROID_DIR=$(find . -name "build.gradle" -o -name "build.gradle.kts" | head -n 1 | xargs dirname)
+        echo "=== الأقسام الموجودة في المجلد الرئيسي ==="
+        ls -R
         
-        if [ -z "$ANDROID_DIR" ]; then
-          echo "Error: No Android project folder found!"
-          exit 1
-        fi
-        
-        echo "Found Android project in: $ANDROID_DIR"
-        cd "$ANDROID_DIR"
-        
-        # توليد الـ wrapper محلياً داخل المجلد الصحيح بالاعتماد على النسخة الافتراضية المستقرة
-        gradle wrapper
-        chmod +x gradlew
-        
-        # تشغيل أمر البناء الفوري للتطبيق
-        ./gradlew assembleDebug --no-daemon
-
-    - name: Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: VoxPrompter-App
-        path: |
-          **/build/outputs/apk/debug/app-debug.apk
-          
