@@ -46,3 +46,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 }
+plugins {
+    id("com.android.application") version "8.2.2" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.22" apply false
+}
