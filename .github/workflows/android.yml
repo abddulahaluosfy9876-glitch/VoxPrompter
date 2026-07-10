@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  independent_verification:
+  focused_wrapper_generation:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,34 +23,16 @@ jobs:
     - name: Setup Android SDK Environment
       uses: android-actions/setup-android@v3
 
-    # خطوة التفكير العميق: تأمين وإرشاد الـ Gradle لمستودعات أندرويد الرسمية لتخطي انهيار السطر الأول
-    - name: Inject Android Repositories to Settings
-      run: |
-        cat << 'EOF' > patch_settings.txt
-        pluginManagement {
-            repositories {
-                google()
-                mavenCentral()
-                gradlePluginPortal()
-            }
-        }
-        dependencyResolutionManagement {
-            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-            repositories {
-                google()
-                mavenCentral()
-            }
-        }
-        EOF
-        cat patch_settings.txt settings.gradle.kts > temp_settings && mv temp_settings settings.gradle.kts
-
-    # الآن نولد الـ Wrapper داخل بيئة أصبحت تفهم الأندرويد ومستودعاته تماماً
     - name: Setup Official Gradle Action
       uses: gradle/actions/setup-gradle@v3
 
-    - name: Generate and Verify Wrapper Health
+    # الخطوة الصحيحة: توليد الـ Wrapper مع أمر صريح بالتخطي وعدم التفتيش في ملفات المشروع الآن
+    - name: Generate Fresh Project Wrapper
+      run: gradle wrapper --no-configure
+
+    # التحقق الهادئ من صحة واستقرار الملف المتولد
+    - name: Verify Wrapper Operational Health
       run: |
-        gradle wrapper
         chmod +x gradlew
         ./gradlew --version --no-daemon
         
