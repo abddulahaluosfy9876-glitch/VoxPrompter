@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  test_environment:
+  test_gradle:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,6 +20,9 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Verify Java Version
-      run: java -version
-      
+    # نختبر هنا هل سيقبل السيرفر ملفات الـ Gradle التي رتبناها أم سيعترض عليها؟
+    - name: Setup Gradle Environment
+      uses: gradle/actions/setup-gradle@v3
+      with:
+        gradle-version: 8.4
+        
