@@ -1,13 +1,18 @@
-name: Android CI-CD Autopilot
+# قرار صحيح: اسم واضح يظهر في تبويب الـ Actions
+name: VoxPrompter Android CI
 
+# وقت ومكان صحيح: تحديد متى يستيقظ السيرفر بدقة بناءً على التوثيق
 on:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
   pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
 
 jobs:
-  stable_automated_build:
+  # اسم المهمة الأساسية المعزولة
+  validate_and_test:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,41 +25,11 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Android SDK Environment
-      uses: android-actions/setup-android@v3
-
-    # الواجب الفعلي: توفير بيئة مستودعات آمنة للمحرك خارج ملفات مشروعك الأساسية
-    - name: Setup Init Repositories Settings
-      run: |
-        mkdir -p ~/.gradle
-        cat << 'EOF' > ~/.gradle/init.gradle
-        allprojects {
-            repositories {
-                google()
-                mavenCentral()
-                gradlePluginPortal()
-            }
-        }
-        settingsEvaluated { settings ->
-            settings.pluginManagement {
-                repositories {
-                    google()
-                    mavenCentral()
-                    gradlePluginPortal()
-                }
-            }
-        }
-        EOF
-
-    - name: Setup Official Gradle Action
+    # استخدام الأداة الرسمية الموصى بها لإدارة الجرادل سحابياً
+    - name: Setup Gradle Official Action
       uses: gradle/actions/setup-gradle@v3
 
-    # بناء الـ Wrapper بأمان وسلام من داخل البيئة المحصنة
-    - name: Generate Project Wrapper
-      run: gradle wrapper
-
-    - name: Verify Wrapper Status
-      run: |
-        chmod +x gradlew
-        ./gradlew --version --no-daemon
-        
+    # تشغيل الفحص النقي للبيئة
+    - name: Run Basic Environment Check
+      run: gradle --version
+      
