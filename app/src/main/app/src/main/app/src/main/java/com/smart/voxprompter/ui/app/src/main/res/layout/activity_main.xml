@@ -77,8 +77,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="ابطأ -"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="#37474F"/>
+            android:layout_marginEnd="6dp"
+            android:backgroundTint="#37474F"
+            android:textSize="13sp"/>
 
         <Button
             android:id="@+id/btnPlayPause"
@@ -88,14 +89,28 @@
             android:backgroundTint="#00E676"
             android:textColor="#121212"
             android:textStyle="bold"
-            android:layout_marginEnd="8dp"/>
+            android:layout_marginEnd="6dp"
+            android:textSize="13sp"/>
+
+        <Button
+            android:id="@+id/btnReset"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="إعادة ↩️"
+            android:backgroundTint="#D32F2F"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginEnd="6dp"
+            android:textSize="13sp"/>
 
         <Button
             android:id="@+id/btnSpeedUp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="أسرع +"
-            android:backgroundTint="#37474F"/>
+            android:backgroundTint="#37474F"
+            android:textSize="13sp"/>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+        
