@@ -8,6 +8,10 @@ jobs:
   bypass_and_force_wrapper:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'Bot: Generated Gradle Wrapper')"
+    
+    # تثبيت القاعدة: إعطاء السيرفر الصلاحية الكاملة للكتابة والرفع من الهاتف
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout Repository
@@ -15,16 +19,11 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    # الحل المضمون: بناء وصناعة ملفات الـ Wrapper عبر أوامر النظام مباشرة دون تشغيل الجرادل المكسور
     - name: Manually Inject Official Gradle Wrapper Files
       run: |
-        # 1. إنشاء المجلدات المطلوبة
         mkdir -p gradle/wrapper
-        
-        # 2. تحميل ملف الـ Jar القياسي مباشرة من مستودع جيرادل الرسمي
         curl -Lo gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradle/wrapper/gradle-wrapper.jar
         
-        # 3. كتابة نصوص الإعدادات المعتمدة للإصدار المستقر 8.7
         cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
         distributionBase=GRADLE_USER_HOME
         distributionPath=wrapper/dists
@@ -35,11 +34,9 @@ jobs:
         zipStorePath=wrapper/dists
         EOF
         
-        # 4. تحميل سكربت التشغيل القياسي gradlew وإعطاؤه صلاحية التنفيذ
         curl -Lo gradlew https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradlew
         chmod +x gradlew
 
-    # رفع الملفات المتولدة فوراً إلى مستودعك لتثبيت النظام
     - name: Commit and Push Wrapper Back to Repository
       run: |
         git config --global user.name "github-actions[bot]"
@@ -48,3 +45,5 @@ jobs:
         git commit -m "Bot: Generated Gradle Wrapper for Mobile Workflow" || echo "No changes to commit"
         git push origin main
         
+
+    
