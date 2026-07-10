@@ -5,90 +5,73 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#121212"
-    android:keepScreenOn="true"
-    android:padding="20dp"
-    android:layoutDirection="rtl">
+    android:padding="16dp">
 
-    <LinearLayout
-        android:id="@+id/statusLayout"
-        android:layout_width="match_parent"
+    <TextView
+        android:id="@+id/appTitle"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        app:layout_topToTopOf="parent">
-
-        <TextView
-            android:id="@+id/tvTimer"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="00:00"
-            android:textSize="20sp"
-            android:textColor="#FF3B30"
-            android:textStyle="bold"
-            android:layout_marginEnd="16dp"/>
-
-        <ProgressBar
-            android:id="@+id/readingProgress"
-            style="?android:attr/progressBarStyleHorizontal"
-            android:layout_width="0dp"
-            android:layout_height="8dp"
-            android:layout_weight="1"
-            android:max="100"
-            android:progressDrawable="@android:drawable/progress_horizontal"
-            android:progressTint="#34C759"/>
-    </LinearLayout>
+        android:text="VoxPrompter Studio"
+        android:textColor="#00E676"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <ScrollView
-        android:id="@+id/textScrollView"
+        android:id="@+id/scriptScroll"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_verticalMargin="24dp"
-        android:fillViewport="true"
-        android:scrollbars="none"
-        app:layout_topToBottomAt="@id/statusLayout"
-        app:layout_bottomToTopOf="@id/controlLayout">
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:background="#1E1E1E"
+        android:padding="12dp"
+        app:layout_constraintBottom_toTopOf="@+id/controlPanel"
+        app:layout_constraintTop_toBottomOf="@+id/appTitle">
 
         <TextView
-            android:id="@+id/tvTeleprompterText"
+            android:id="@+id/tvPrompterText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="28sp"
+            android:text="أهلاً بك في VoxPrompter! السكربت الخاص بك سيتحرك هنا تلقائياً عند البدء..."
             android:textColor="#FFFFFF"
-            android:gravity="center"
-            android:lineSpacingMultiplier="1.6"
-            android:paddingVertical="100dp"
-            android:text="هذا نص تجريبي ذكي للملقن الصوتي التلقائي. عندما تبدأ بالقراءة بصوتك الواضح، سيقوم التطبيق بالاستماع إليك ومطابقة كلماتك مع هذا النص، ثم تحريك الشاشة تلقائياً لتبقيك دائماً في المنتصف دون الحاجة للمس الهاتف." />
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:gravity="center" />
     </ScrollView>
 
     <LinearLayout
-        android:id="@+id/controlLayout"
+        android:id="@+id/controlPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center"
-        app:layout_bottomtoBottomOf="parent">
+        app:layout_constraintBottom_toBottomOf="parent">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnStart"
-            android:layout_width="200dp"
-            android:layout_height="56dp"
-            android:text="ابدأ القراءة والتسجيل"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            app:backgroundTint="#007AFF"
-            app:cornerRadius="28dp"/>
+        <Button
+            android:id="@+id/btnSpeedDown"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ابطأ -"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="#37474F"/>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnStop"
-            android:layout_width="200dp"
-            android:layout_height="56dp"
-            android:text="إنهاء وحفظ"
-            android:textSize="18sp"
+        <Button
+            android:id="@+id/btnPlayPause"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="تشغيل"
+            android:backgroundTint="#00E676"
+            android:textColor="#121212"
             android:textStyle="bold"
-            android:visibility="gone"
-            app:backgroundTint="#FF3B30"
-            app:cornerRadius="28dp"/>
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/btnSpeedUp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="أسرع +"
+            android:backgroundTint="#37474F"/>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-      
