@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build_stable_wrapper:
+  build_with_android_env:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,16 +20,19 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # الأداة الرسمية والآمنة من GitHub لإدارة وتوليد الـ Gradle بشكل مستقل
-    - name: Setup Gradle
+    # تأمين متطلبات الأندرويد أولاً لضمان نجاح الخطوات التالية
+    - name: Setup Android SDK Environment
+      uses: android-actions/setup-android@v3
+
+    # الآن نستخدم أداة الـ Gradle الرسمية بعد أن أصبحت البيئة جاهزة
+    - name: Setup Gradle Official Action
       uses: gradle/actions/setup-gradle@v3
 
-    # تشغيل أمر التوليد النقي الآن
+    # توليد وتشغيل الـ Wrapper بأمان
     - name: Generate Project Wrapper
       run: gradle wrapper
 
-    # التحقق من الصلاحيات والنسخة
-    - name: Verify Wrapper Health
+    - name: Verify Environment Status
       run: |
         chmod +x gradlew
         ./gradlew --version --no-daemon
