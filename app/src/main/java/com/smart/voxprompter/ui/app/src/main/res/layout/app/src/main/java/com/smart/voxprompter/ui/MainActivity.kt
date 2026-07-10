@@ -3,6 +3,7 @@ package com.smart.voxprompter
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
@@ -24,10 +25,9 @@ class MainActivity : AppCompatActivity() {
     private val scrollRunnable = object : Runnable {
         override fun run() {
             if (isPlaying) {
-                // تحريك النص داخل الـ EditText تلقائياً بناءً على قيمة scrollY الحالي
                 val scrollY = etUserScript.scrollY
                 etUserScript.scrollTo(0, scrollY + scrollSpeed)
-                handler.postDelayed(this, 30) // تكرار الحركة كل 30 جزء من الثانية
+                handler.postDelayed(this, 30)
             }
         }
     }
@@ -36,7 +36,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // ربط عناصر الواجهة الجديدة
+        // ربط عناصر الواجهة
         etUserScript = findViewById(R.id.etUserScript)
         btnPlayPause = findViewById(R.id.btnPlayPause)
         btnSpeedUp = findViewById(R.id.btnSpeedUp)
@@ -49,10 +49,13 @@ class MainActivity : AppCompatActivity() {
             if (isPlaying) {
                 isPlaying = false
                 btnPlayPause.text = "تشغيل"
+                etUserScript.isCursorVisible = true // إعادة إظهار المؤشر عند الإيقاف للتعديل
                 handler.removeCallbacks(scrollRunnable)
             } else {
                 isPlaying = true
                 btnPlayPause.text = "إيقاف"
+                etUserScript.isCursorVisible = false // إخفاء المؤشر أثناء القراءة لمنع التشتيت
+                hideKeyboard() // إغلاق لوحة المفاتيح تلقائياً عند بدء التحريك
                 handler.post(scrollRunnable)
             }
         }
@@ -81,6 +84,14 @@ class MainActivity : AppCompatActivity() {
                 fontSize -= 4f
                 etUserScript.textSize = fontSize
             }
+        }
+    }
+
+    // دالة مساعدة لإخفاء لوحة المفاتيح بسلاسة
+    private fun hideKeyboard() {
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
+        currentFocus?.let {
+            imm.hideSoftInputFromWindow(it.windowToken, 0)
         }
     }
 
