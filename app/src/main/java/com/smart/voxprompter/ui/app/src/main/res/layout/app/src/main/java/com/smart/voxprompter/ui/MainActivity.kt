@@ -4,14 +4,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.widget.Button
-import android.widget.ScrollView
-import android.widget.TextView
+import android.widget.EditText
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var scriptScroll: ScrollView
-    private lateinit var tvPrompterText: TextView
+    private lateinit var etUserScript: EditText
     private lateinit var btnPlayPause: Button
     private lateinit var btnSpeedUp: Button
     private lateinit var btnSpeedDown: Button
@@ -21,13 +19,15 @@ class MainActivity : AppCompatActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var isPlaying = false
     private var scrollSpeed = 2 // السرعة الافتراضية للحركة
-    private var fontSize = 28f // الحجم الافتراضي للخط بالـ SP
+    private var fontSize = 24f // الحجم الافتراضي للخط بالـ SP
 
     private val scrollRunnable = object : Runnable {
         override fun run() {
             if (isPlaying) {
-                scriptScroll.smoothScrollBy(0, scrollSpeed)
-                handler.postDelayed(this, 30)
+                // تحريك النص داخل الـ EditText تلقائياً بناءً على قيمة scrollY الحالي
+                val scrollY = etUserScript.scrollY
+                etUserScript.scrollTo(0, scrollY + scrollSpeed)
+                handler.postDelayed(this, 30) // تكرار الحركة كل 30 جزء من الثانية
             }
         }
     }
@@ -36,16 +36,15 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // ربط عناصر الواجهة
-        scriptScroll = findViewById(R.id.scriptScroll)
-        tvPrompterText = findViewById(R.id.tvPrompterText)
+        // ربط عناصر الواجهة الجديدة
+        etUserScript = findViewById(R.id.etUserScript)
         btnPlayPause = findViewById(R.id.btnPlayPause)
         btnSpeedUp = findViewById(R.id.btnSpeedUp)
         btnSpeedDown = findViewById(R.id.btnSpeedDown)
         btnTextIncrease = findViewById(R.id.btnTextIncrease)
         btnTextDecrease = findViewById(R.id.btnTextDecrease)
 
-        // برمجة زر التشغيل والإيقاف المؤقت
+        // برمجة زر التشغيل والإيقاف المؤقت للتحريك
         btnPlayPause.setOnClickListener {
             if (isPlaying) {
                 isPlaying = false
@@ -68,19 +67,19 @@ class MainActivity : AppCompatActivity() {
             if (scrollSpeed > 1) scrollSpeed -= 1
         }
 
-        // تكبير حجم الخط
+        // تكبير حجم الخط داخل مربع النص
         btnTextIncrease.setOnClickListener {
-            if (fontSize < 60f) { // حد أقصى للحجم من أجل التناسق
+            if (fontSize < 60f) {
                 fontSize += 4f
-                tvPrompterText.textSize = fontSize
+                etUserScript.textSize = fontSize
             }
         }
 
-        // تصغير حجم الخط
+        // تصغير حجم الخط داخل مربع النص
         btnTextDecrease.setOnClickListener {
-            if (fontSize > 18f) { // حد أدنى لضمان وضوح القراءة
+            if (fontSize > 18f) {
                 fontSize -= 4f
-                tvPrompterText.textSize = fontSize
+                etUserScript.textSize = fontSize
             }
         }
     }
