@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // شاشة فارغة مؤقتاً للتأكد من نجاح التشغيل والبناء
+        // ربط الكود بملف التصميمactivity_main.xml ليعرض الشاشة للمستخدم
+        setContentView(R.layout.activity_main)
     }
 }
