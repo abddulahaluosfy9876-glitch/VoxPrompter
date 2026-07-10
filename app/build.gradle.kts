@@ -1,6 +1,6 @@
 plugins {
     id("com.android.application") version "8.4.0"
-    id("org.jetbrains.kotlin.android") version "1.9.24" // تحديث ليتطابق مع السيرفر
+    id("org.jetbrains.kotlin.android") version "1.9.24"
 }
 
 android {
@@ -40,7 +40,7 @@ android {
         compose = true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.11" // التحديث الذهبي المتوافق مع Kotlin 1.9.24
+        kotlinCompilerExtensionVersion = "1.5.14" // الإصدار المتوافق رسمياً وهندسياً مع Kotlin 1.9.24
     }
     packaging {
         resources {
