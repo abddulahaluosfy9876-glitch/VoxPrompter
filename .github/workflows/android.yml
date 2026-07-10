@@ -21,15 +21,25 @@ jobs:
         distribution: 'temurin'
         cache: 'gradle'
 
-    - name: Change wrapper permissions
-      run: chmod +x gradlew
+    - name: Find and Grant Permissions for Gradlew
+      run: |
+        GRADLEW_PATH=$(find . -name "gradlew" -print -quit)
+        if [ -z "$GRADLEW_PATH" ]; then
+          echo "Error: gradlew not found anywhere in the repository!"
+          exit 1
+        fi
+        chmod +x "$GRADLEW_PATH"
+        echo "GRADLEW_DIR=$(dirname "$GRADLEW_PATH")" >> $GITHUB_ENV
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon
+      run: |
+        cd ${{ env.GRADLEW_DIR }}
+        ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: VoxPrompter-App
-        path: app/build/outputs/apk/debug/app-debug.apk
-        
+        path: |
+          **/build/outputs/apk/debug/app-debug.apk
+          
