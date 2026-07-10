@@ -7,19 +7,6 @@ on:
     branches: [ "main" ]
 
 jobs:
-  validate_environment:
-    runs-on: ubuntu-latest
-
-    steps:
-    name: Android CI-CD Autopilot
-
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-jobs:
   build_stable_wrapper:
     runs-on: ubuntu-latest
 
@@ -33,14 +20,15 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+    # الأداة الرسمية والآمنة من GitHub لإدارة وتوليد الـ Gradle بشكل مستقل
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
 
-    # الخطوة التالية الصحيحة: بناء ملف الـ Wrapper المحلي من داخل بيئة الأندرويد الآمنة
+    # تشغيل أمر التوليد النقي الآن
     - name: Generate Project Wrapper
       run: gradle wrapper
 
-    # فحص نظام الـ Wrapper الجديد للتأكد من استقراره وقدرته على العمل
+    # التحقق من الصلاحيات والنسخة
     - name: Verify Wrapper Health
       run: |
         chmod +x gradlew
