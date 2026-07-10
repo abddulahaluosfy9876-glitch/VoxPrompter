@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  check_base_project:
+  check_local_gradle:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,10 +19,15 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
+        cache: 'gradle'
 
-    - name: Setup Gradle Wrapper Safely
-      run: gradle wrapper --no-configure
+    - name: Fix Wrapper Permissions
+      run: |
+        # التأكد من إعطاء الصلاحية لملف التشغيل المحلي للمشروع
+        chmod +x gradlew
 
-    - name: Grant Execute Permission
-      run: chmod +x gradlew
-      
+    - name: Verify Gradle Environment
+      run: |
+        # تشغيل فحص نسبي للنسخة للتأكد من أن البيئة المحلية تستجيب بنجاح
+        ./gradlew --version --no-daemon
+        
