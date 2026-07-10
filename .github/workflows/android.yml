@@ -1,28 +1,35 @@
-name: VoxPrompter - Purge Old Code
+name: VoxPrompter Android CI
 
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  purge_job:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Force Clean Old Architecture
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Inject Gradle Properties
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-        # حذف مجلد البنية القديمة بالكامل لمنع تعارض المراجع
-        rm -rf app/src/main/java/com/smart
-        
-        git add .
-        git commit -m "Bot: Purge old smart package and source files" || echo "No files to remove"
-        git push origin main
+        echo "android.useAndroidX=true" > gradle.properties
+        echo "org.gradle.jvmargs=-Xmx2048m" >> gradle.properties
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Build Debug APK
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
         
