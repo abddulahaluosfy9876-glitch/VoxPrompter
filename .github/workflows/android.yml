@@ -1,28 +1,30 @@
-name: VoxPrompter - Emergency Cleanup
+name: VoxPrompter Android CI
 
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  cleanup_job:
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
-    - name: Force Delete Distorted File
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Build Debug APK
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        
-        # أمر الحذف الصارم للملَف المشوه الذي ينتهي بنقطة
-        rm -f "gradlew."
-        
-        git add .
-        git commit -m "Bot: Clean up and remove distorted gradlew. file" || echo "No files to remove"
-        git push origin main
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
         
