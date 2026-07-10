@@ -16,11 +16,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnSpeedDown: Button
     private lateinit var btnTextIncrease: Button
     private lateinit var btnTextDecrease: Button
+    private lateinit var btnReset: Button
 
     private val handler = Handler(Looper.getMainLooper())
     private var isPlaying = false
-    private var scrollSpeed = 2 // السرعة الافتراضية للحركة
-    private var fontSize = 24f // الحجم الافتراضي للخط بالـ SP
+    private var scrollSpeed = 2 
+    private var fontSize = 24f 
 
     private val scrollRunnable = object : Runnable {
         override fun run() {
@@ -36,41 +37,46 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        // ربط عناصر الواجهة
         etUserScript = findViewById(R.id.etUserScript)
         btnPlayPause = findViewById(R.id.btnPlayPause)
         btnSpeedUp = findViewById(R.id.btnSpeedUp)
         btnSpeedDown = findViewById(R.id.btnSpeedDown)
         btnTextIncrease = findViewById(R.id.btnTextIncrease)
         btnTextDecrease = findViewById(R.id.btnTextDecrease)
+        btnReset = findViewById(R.id.btnReset)
 
-        // برمجة زر التشغيل والإيقاف المؤقت للتحريك
         btnPlayPause.setOnClickListener {
             if (isPlaying) {
                 isPlaying = false
                 btnPlayPause.text = "تشغيل"
-                etUserScript.isCursorVisible = true // إعادة إظهار المؤشر عند الإيقاف للتعديل
+                etUserScript.isCursorVisible = true 
                 handler.removeCallbacks(scrollRunnable)
             } else {
                 isPlaying = true
                 btnPlayPause.text = "إيقاف"
-                etUserScript.isCursorVisible = false // إخفاء المؤشر أثناء القراءة لمنع التشتيت
-                hideKeyboard() // إغلاق لوحة المفاتيح تلقائياً عند بدء التحريك
+                etUserScript.isCursorVisible = false 
+                hideKeyboard() 
                 handler.post(scrollRunnable)
             }
         }
 
-        // زيادة سرعة الحركة
+        // تفعيل زر الإعادة للبداية
+        btnReset.setOnClickListener {
+            isPlaying = false
+            btnPlayPause.text = "تشغيل"
+            etUserScript.isCursorVisible = true
+            handler.removeCallbacks(scrollRunnable)
+            etUserScript.scrollTo(0, 0) // إرجاع النص للأعلى تماماً
+        }
+
         btnSpeedUp.setOnClickListener {
             if (scrollSpeed < 10) scrollSpeed += 1
         }
 
-        // تقليل سرعة الحركة
         btnSpeedDown.setOnClickListener {
             if (scrollSpeed > 1) scrollSpeed -= 1
         }
 
-        // تكبير حجم الخط داخل مربع النص
         btnTextIncrease.setOnClickListener {
             if (fontSize < 60f) {
                 fontSize += 4f
@@ -78,7 +84,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // تصغير حجم الخط داخل مربع النص
         btnTextDecrease.setOnClickListener {
             if (fontSize > 18f) {
                 fontSize -= 4f
@@ -87,7 +92,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // دالة مساعدة لإخفاء لوحة المفاتيح بسلاسة
     private fun hideKeyboard() {
         val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
         currentFocus?.let {
