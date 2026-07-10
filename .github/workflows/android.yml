@@ -2,14 +2,12 @@ name: VoxPrompter Android CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
   pull_request:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
-  validate_and_build:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,11 +20,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle Official Action
+    - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
-    # الخطوة التصاعدية الجديدة: بناء نسخة التطبيق والتأكد من سلامة ملفات الصوت والأكواد
-    - name: Assemble Debug APK
-      run: gradle assembleDebug --no-daemon
-
-      
+    # تشغيل ملف التشغيل المحلي القياسي الخاص بالمشروع فور تجهيزه
+    - name: Build Debug APK
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+        
