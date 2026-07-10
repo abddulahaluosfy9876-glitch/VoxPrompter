@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  focused_wrapper_generation:
+  stable_automated_build:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,15 +23,37 @@ jobs:
     - name: Setup Android SDK Environment
       uses: android-actions/setup-android@v3
 
+    # الواجب الفعلي: توفير بيئة مستودعات آمنة للمحرك خارج ملفات مشروعك الأساسية
+    - name: Setup Init Repositories Settings
+      run: |
+        mkdir -p ~/.gradle
+        cat << 'EOF' > ~/.gradle/init.gradle
+        allprojects {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        settingsEvaluated { settings ->
+            settings.pluginManagement {
+                repositories {
+                    google()
+                    mavenCentral()
+                    gradlePluginPortal()
+                }
+            }
+        }
+        EOF
+
     - name: Setup Official Gradle Action
       uses: gradle/actions/setup-gradle@v3
 
-    # الخطوة الصحيحة: توليد الـ Wrapper مع أمر صريح بالتخطي وعدم التفتيش في ملفات المشروع الآن
-    - name: Generate Fresh Project Wrapper
-      run: gradle wrapper --no-configure
+    # بناء الـ Wrapper بأمان وسلام من داخل البيئة المحصنة
+    - name: Generate Project Wrapper
+      run: gradle wrapper
 
-    # التحقق الهادئ من صحة واستقرار الملف المتولد
-    - name: Verify Wrapper Operational Health
+    - name: Verify Wrapper Status
       run: |
         chmod +x gradlew
         ./gradlew --version --no-daemon
