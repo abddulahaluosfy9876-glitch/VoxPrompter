@@ -25,7 +25,7 @@ jobs:
       with:
         gradle-version: 8.4
 
-    # نقوم هنا بمحاولة فحص كود الأندرويد والـ ريسورس للتأكد من خلوها من الأخطاء
+    # استبدلنا التتبع الطويل بأمر صامت يطبع فقط الأخطاء المباشرة في الكود
     - name: Compile and Validate Java/Kotlin Code
-      run: gradle compileDebugSources --no-daemon --stacktrace
+      run: gradle compileDebugSources --quiet
       
