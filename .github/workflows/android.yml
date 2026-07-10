@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  bypass_and_verify:
+  independent_verification:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,16 +23,34 @@ jobs:
     - name: Setup Android SDK Environment
       uses: android-actions/setup-android@v3
 
-    # القرار الصحيح: حقن وإصلاح ملف التشغيل القياسي دون استدعاء الأداة الخارجية الفاشلة
-    - name: Force Write Valid Gradle Wrapper Script
+    # خطوة التفكير العميق: تأمين وإرشاد الـ Gradle لمستودعات أندرويد الرسمية لتخطي انهيار السطر الأول
+    - name: Inject Android Repositories to Settings
       run: |
-        cat << 'EOF' > gradlew
-        #!/bin/sh
-        exec gradle "$@"
+        cat << 'EOF' > patch_settings.txt
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories {
+                google()
+                mavenCentral()
+            }
+        }
         EOF
-        chmod +x gradlew
+        cat patch_settings.txt settings.gradle.kts > temp_settings && mv temp_settings settings.gradle.kts
 
-    # التحقق الحاسم من نجاح استجابة النظام المحتوي على الأندرويد الآن
-    - name: Check System Response
-      run: ./gradlew --version --no-daemon
-      
+    # الآن نولد الـ Wrapper داخل بيئة أصبحت تفهم الأندرويد ومستودعاته تماماً
+    - name: Setup Official Gradle Action
+      uses: gradle/actions/setup-gradle@v3
+
+    - name: Generate and Verify Wrapper Health
+      run: |
+        gradle wrapper
+        chmod +x gradlew
+        ./gradlew --version --no-daemon
+        
