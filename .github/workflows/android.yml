@@ -1,18 +1,20 @@
-name: VoxPrompter Android CI
+name: VoxPrompter Android CI - Mobile Autopilot
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
-  build:
+  generate_and_push_wrapper:
     runs-on: ubuntu-latest
+    # نمنع التكرار اللانهائي عند رفع الملفات تلقائياً
+    if: "!contains(github.event.head_commit.message, 'Bot: Generated Gradle Wrapper')"
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
@@ -20,12 +22,16 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
+    # 1. السيرفر يقوم بتوليد الـ Wrapper النظيف الآن بالنسخة القياسية المستقرة
+    - name: Generate Wrapper Files
+      run: gradle wrapper --gradle-version 8.7
 
-    # تشغيل ملف التشغيل المحلي القياسي الخاص بالمشروع فور تجهيزه
-    - name: Build Debug APK
+    # 2. السيرفر يقوم بحفظ ورفع الملفات تلقائياً إلى مستودعك باسمك
+    - name: Commit and Push Wrapper Back to Repository
       run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git add gradlew gradle/wrapper/gradle-wrapper.jar gradle/wrapper/gradle-wrapper.properties
+        git commit -m "Bot: Generated Gradle Wrapper for Mobile Workflow" || echo "No changes to commit"
+        git push origin main
         
