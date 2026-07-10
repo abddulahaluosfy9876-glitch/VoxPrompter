@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  check_local_gradle:
+  build_wrapper_first:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,15 +19,14 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: 'gradle'
 
-    - name: Fix Wrapper Permissions
-      run: |
-        # التأكد من إعطاء الصلاحية لملف التشغيل المحلي للمشروع
-        chmod +x gradlew
+    - name: Generate Fresh Valid Wrapper
+      # هذه هي الخطوة المفقودة! نطلب توليد ملفات التشغيل بشكل نقي أولاً
+      run: gradle wrapper
 
-    - name: Verify Gradle Environment
+    - name: Verify Fresh Wrapper Exists
+      # التحقق من أن الملف أصبح موجوداً وصالحاً قبل المضي قدماً
       run: |
-        # تشغيل فحص نسبي للنسخة للتأكد من أن البيئة المحلية تستجيب بنجاح
+        ls -la gradlew
         ./gradlew --version --no-daemon
         
