@@ -20,15 +20,25 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Create Base Gradlew Wrapper if missing
+    - name: Locate Android Project and Build APK
       run: |
-        if [ ! -f "gradlew" ]; then
-          gradle wrapper
+        # البحث عن المجلد الذي يحتوي على ملف إعدادات الأندرويد الحقيقي
+        ANDROID_DIR=$(find . -name "build.gradle" -o -name "build.gradle.kts" | head -n 1 | xargs dirname)
+        
+        if [ -z "$ANDROID_DIR" ]; then
+          echo "Error: No Android project folder found!"
+          exit 1
         fi
+        
+        echo "Found Android project in: $ANDROID_DIR"
+        cd "$ANDROID_DIR"
+        
+        # توليد الـ wrapper محلياً داخل المجلد الصحيح بالاعتماد على النسخة الافتراضية المستقرة
+        gradle wrapper
         chmod +x gradlew
-
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon
+        
+        # تشغيل أمر البناء الفوري للتطبيق
+        ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
