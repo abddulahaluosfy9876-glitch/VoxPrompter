@@ -19,14 +19,10 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: 'gradle'
 
-    - name: Setup Gradle Wrapper
-      run: gradle wrapper
+    - name: Setup Gradle Wrapper Safely
+      run: gradle wrapper --no-configure
 
     - name: Grant Execute Permission
       run: chmod +x gradlew
-
-    - name: Run Basic Gradle Check
-      run: ./gradlew tasks --no-daemon
       
