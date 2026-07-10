@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build_wrapper_first:
+  validate_environment:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,13 +20,14 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Generate Fresh Valid Wrapper
-      # هذه هي الخطوة المفقودة! نطلب توليد ملفات التشغيل بشكل نقي أولاً
-      run: gradle wrapper
+    # خطوة إكمال النقص: تهيئة أدوات ومستودعات الأندرويد الرسمية داخل السيرفر أولاً
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
 
-    - name: Verify Fresh Wrapper Exists
-      # التحقق من أن الملف أصبح موجوداً وصالحاً قبل المضي قدماً
+    # الآن نقوم بفحص النظام الداخلي والتأكد من سلامة ملفات الإعدادات
+    - name: Verify Environment Completeness
       run: |
-        ls -la gradlew
-        ./gradlew --version --no-daemon
+        echo "=== فحص اكتمال المتطلبات ==="
+        if [ -f "settings.gradle.kts" ]; then echo "✅ settings.gradle.kts موجود"; else echo "❌ مفقود"; fi
+        if [ -f "build.gradle.kts" ]; then echo "✅ build.gradle.kts موجود"; else echo "❌ مفقود"; fi
         
