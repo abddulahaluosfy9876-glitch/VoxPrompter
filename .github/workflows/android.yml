@@ -11,6 +11,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    name: Android CI-CD Autopilot
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_stable_wrapper:
+    runs-on: ubuntu-latest
+
+    steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
 
@@ -20,14 +33,16 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # خطوة إكمال النقص: تهيئة أدوات ومستودعات الأندرويد الرسمية داخل السيرفر أولاً
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
-    # الآن نقوم بفحص النظام الداخلي والتأكد من سلامة ملفات الإعدادات
-    - name: Verify Environment Completeness
+    # الخطوة التالية الصحيحة: بناء ملف الـ Wrapper المحلي من داخل بيئة الأندرويد الآمنة
+    - name: Generate Project Wrapper
+      run: gradle wrapper
+
+    # فحص نظام الـ Wrapper الجديد للتأكد من استقراره وقدرته على العمل
+    - name: Verify Wrapper Health
       run: |
-        echo "=== فحص اكتمال المتطلبات ==="
-        if [ -f "settings.gradle.kts" ]; then echo "✅ settings.gradle.kts موجود"; else echo "❌ مفقود"; fi
-        if [ -f "build.gradle.kts" ]; then echo "✅ build.gradle.kts موجود"; else echo "❌ مفقود"; fi
+        chmod +x gradlew
+        ./gradlew --version --no-daemon
         
