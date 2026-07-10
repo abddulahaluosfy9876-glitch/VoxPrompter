@@ -26,7 +26,7 @@
         android:layout_marginBottom="16dp"
         android:background="#1E1E1E"
         android:padding="12dp"
-        app:layout_constraintBottom_toTopOf="@+id/controlPanel"
+        app:layout_constraintBottom_toTopOf="@+id/textControlPanel"
         app:layout_constraintTop_toBottomOf="@+id/appTitle">
 
         <TextView
@@ -39,6 +39,33 @@
             android:textStyle="bold"
             android:gravity="center" />
     </ScrollView>
+
+    <LinearLayout
+        android:id="@+id/textControlPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/controlPanel">
+
+        <Button
+            android:id="@+id/btnTextDecrease"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="تصغير الخط -"
+            android:layout_marginEnd="8dp"
+            android:backgroundTint="#455A64"
+            android:textSize="12sp"/>
+
+        <Button
+            android:id="@+id/btnTextIncrease"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="تكبير الخط +"
+            android:backgroundTint="#455A64"
+            android:textSize="12sp"/>
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/controlPanel"
@@ -75,3 +102,4 @@
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+        
