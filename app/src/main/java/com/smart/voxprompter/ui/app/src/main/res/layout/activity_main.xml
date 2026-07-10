@@ -18,27 +18,71 @@
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <ScrollView
-        android:id="@+id/scriptScroll"
+    <EditText
+        android:id="@+id/etUserScript"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
         android:background="#1E1E1E"
+        android:gravity="top|center_horizontal"
+        android:hint="اكتب أو الصق السكربت الخاص بك هنا ثم اضغط تشغيل..."
+        android:textColorHint="#757575"
+        android:textColor="#FFFFFF"
+        android:textSize="24sp"
+        android:textStyle="bold"
         android:padding="12dp"
-        app:layout_constraintBottom_toTopOf="@+id/textControlPanel"
-        app:layout_constraintTop_toBottomOf="@+id/appTitle">
+        android:inputType="textMultiLine"
+        android:scrollbars="vertical"
+        app:layout_constraintBottom_toTopOf="@+id/audioControlPanel"
+        app:layout_constraintTop_toBottomOf="@+id/appTitle" />
+
+    <LinearLayout
+        android:id="@+id/audioControlPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/textControlPanel">
 
         <TextView
-            android:id="@+id/tvPrompterText"
+            android:id="@+id/tvAudioStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="المسجل جاهز لبدء الصوت 🎙️"
+            android:textColor="#B0BEC5"
+            android:textSize="14sp"
+            android:layout_marginBottom="4dp"/>
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="أهلاً بك في VoxPrompter! السكربت الخاص بك سيتحرك هنا تلقائياً عند البدء..."
-            android:textColor="#FFFFFF"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:gravity="center" />
-    </ScrollView>
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btnRecordStart"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="بدء التسجيل 🔴"
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="#E53935"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold"/>
+
+            <Button
+                android:id="@+id/btnRecordStop"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="حفظ التسجيل 💾"
+                android:backgroundTint="#1E88E5"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp"
+                android:enabled="false"/>
+        </LinearLayout>
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/textControlPanel"
@@ -80,8 +124,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="ابطأ -"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="#37474F"/>
+            android:layout_marginEnd="6dp"
+            android:backgroundTint="#37474F"
+            android:textSize="13sp"/>
 
         <Button
             android:id="@+id/btnPlayPause"
@@ -91,15 +136,27 @@
             android:backgroundTint="#00E676"
             android:textColor="#121212"
             android:textStyle="bold"
-            android:layout_marginEnd="8dp"/>
+            android:layout_marginEnd="6dp"
+            android:textSize="13sp"/>
+
+        <Button
+            android:id="@+id/btnReset"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="إعادة ↩️"
+            android:backgroundTint="#D32F2F"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:layout_marginEnd="6dp"
+            android:textSize="13sp"/>
 
         <Button
             android:id="@+id/btnSpeedUp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="أسرع +"
-            android:backgroundTint="#37474F"/>
+            android:backgroundTint="#37474F"
+            android:textSize="13sp"/>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
-        
