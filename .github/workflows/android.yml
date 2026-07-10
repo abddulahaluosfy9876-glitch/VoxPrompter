@@ -20,6 +20,12 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    - name: Inject Gradle Properties
+      run: |
+        # إنشاء وفرض ملف الخصائص برمجياً داخل السيرفر لضمان تفعيل AndroidX
+        echo "android.useAndroidX=true" > gradle.properties
+        echo "org.gradle.jvmargs=-Xmx2048m" >> gradle.properties
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
