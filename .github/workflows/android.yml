@@ -5,9 +5,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  generate_and_push_wrapper:
+  bypass_and_force_wrapper:
     runs-on: ubuntu-latest
-    # نمنع التكرار اللانهائي عند رفع الملفات تلقائياً
     if: "!contains(github.event.head_commit.message, 'Bot: Generated Gradle Wrapper')"
 
     steps:
@@ -16,17 +15,31 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+    # الحل المضمون: بناء وصناعة ملفات الـ Wrapper عبر أوامر النظام مباشرة دون تشغيل الجرادل المكسور
+    - name: Manually Inject Official Gradle Wrapper Files
+      run: |
+        # 1. إنشاء المجلدات المطلوبة
+        mkdir -p gradle/wrapper
+        
+        # 2. تحميل ملف الـ Jar القياسي مباشرة من مستودع جيرادل الرسمي
+        curl -Lo gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradle/wrapper/gradle-wrapper.jar
+        
+        # 3. كتابة نصوص الإعدادات المعتمدة للإصدار المستقر 8.7
+        cat << 'EOF' > gradle/wrapper/gradle-wrapper.properties
+        distributionBase=GRADLE_USER_HOME
+        distributionPath=wrapper/dists
+        distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
+        networkTimeout=10000
+        validateDistributionUrl=true
+        zipStoreBase=GRADLE_USER_HOME
+        zipStorePath=wrapper/dists
+        EOF
+        
+        # 4. تحميل سكربت التشغيل القياسي gradlew وإعطاؤه صلاحية التنفيذ
+        curl -Lo gradlew https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradlew
+        chmod +x gradlew
 
-    # 1. السيرفر يقوم بتوليد الـ Wrapper النظيف الآن بالنسخة القياسية المستقرة
-    - name: Generate Wrapper Files
-      run: gradle wrapper --gradle-version 8.7
-
-    # 2. السيرفر يقوم بحفظ ورفع الملفات تلقائياً إلى مستودعك باسمك
+    # رفع الملفات المتولدة فوراً إلى مستودعك لتثبيت النظام
     - name: Commit and Push Wrapper Back to Repository
       run: |
         git config --global user.name "github-actions[bot]"
