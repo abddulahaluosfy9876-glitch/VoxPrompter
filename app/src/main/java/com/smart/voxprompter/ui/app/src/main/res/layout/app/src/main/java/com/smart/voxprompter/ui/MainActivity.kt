@@ -28,8 +28,10 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
+    // تحديد دالة الـ Text التابعة لـ Material3 بشكل صريح ومباشر
+    androidx.compose.material3.Text(
         text = "Welcome to $name!",
         modifier = modifier
     )
 }
+
