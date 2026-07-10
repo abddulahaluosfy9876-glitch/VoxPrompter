@@ -1,7 +1,5 @@
-# قرار صحيح: اسم واضح يظهر في تبويب الـ Actions
 name: VoxPrompter Android CI
 
-# وقت ومكان صحيح: تحديد متى يستيقظ السيرفر بدقة بناءً على التوثيق
 on:
   push:
     branches:
@@ -11,8 +9,7 @@ on:
       - main
 
 jobs:
-  # اسم المهمة الأساسية المعزولة
-  validate_and_test:
+  validate_and_build:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,11 +22,11 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # استخدام الأداة الرسمية الموصى بها لإدارة الجرادل سحابياً
     - name: Setup Gradle Official Action
       uses: gradle/actions/setup-gradle@v3
 
-    # تشغيل الفحص النقي للبيئة
-    - name: Run Basic Environment Check
-      run: gradle --version
+    # الخطوة التصاعدية الجديدة: بناء نسخة التطبيق والتأكد من سلامة ملفات الصوت والأكواد
+    - name: Assemble Debug APK
+      run: gradle assembleDebug --no-daemon
+
       
