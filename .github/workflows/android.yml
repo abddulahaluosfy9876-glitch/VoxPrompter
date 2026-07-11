@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # استخدام super.setContentView لمنع تداخل الخصائص الثابتة في المترجم
+    # تطبيق بروتوكول الفصل التام للملفات البرمجية لمنع تعارض مراجع المترجم
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -64,14 +64,13 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن نقي ومستقر عبر دمج الاستدعاء الصريح للأب super
-        cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
+        # 3. كلاس الواجهة والمحرك التكراري معزول بالكامل في ملف منفصل ومحمي 100%
+        cat << 'EOF' > app/src/main/java/com/example/voxprompter/PrompterLayout.kt
         package com.example.voxprompter
 
-        import android.app.Activity
+        import android.content.Context
         import android.graphics.Color
         import android.graphics.Typeface
-        import android.os.Bundle
         import android.os.Handler
         import android.os.Looper
         import android.view.Gravity
@@ -80,53 +79,89 @@ jobs:
         import android.widget.ScrollView
         import android.widget.TextView
 
+        class PrompterLayout(context: Context) : LinearLayout(context) {
+            
+            private val scrollerComponent: ScrollView = ScrollView(context)
+            private val animationHandler = Handler(Looper.getMainLooper())
+            
+            private val tickerRunnable = object : Runnable {
+                override fun run() {
+                    scrollerComponent.smoothScrollBy(0, 3)
+                    animationHandler.postDelayed(this, 40)
+                }
+            }
+
+            init {
+                this.orientation = VERTICAL
+                this.setBackgroundColor(Color.BLACK)
+
+                val contentTextView = TextView(context)
+                contentTextView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
+                contentTextView.textSize = 28f
+                contentTextView.setTextColor(Color.WHITE)
+                contentTextView.gravity = Gravity.CENTER_HORIZONTAL
+                contentTextView.typeface = Typeface.DEFAULT_BOLD
+                contentTextView.lineSpacingMultiplier = 1.4f
+
+                val textLayoutParams = LayoutParams(
+                    LayoutParams.MATCH_PARENT,
+                    LayoutParams.WRAP_CONTENT
+                )
+                textLayoutParams.setMargins(40, 100, 40, 600)
+
+                scrollerComponent.addView(contentTextView, textLayoutParams)
+                
+                val scrollerLayoutParams = LayoutParams(
+                    LayoutParams.MATCH_PARENT,
+                    LayoutParams.MATCH_PARENT
+                )
+                this.addView(scrollerComponent, scrollerLayoutParams)
+            }
+
+            fun startMoving() {
+                animationHandler.postDelayed(tickerRunnable, 1000)
+            }
+
+            fun stopMoving() {
+                animationHandler.removeCallbacks(tickerRunnable)
+            }
+        }
+        EOF
+
+        # 4. كلاس الـ Activity الرئيسي النقي لاستدعاء الحاوية المستقلة دون تعارض
+        cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
+        package com.example.voxprompter
+
+        import android.app.Activity
+        import android.os.Bundle
+        import android.view.ViewGroup
+
         class MainActivity : Activity() {
+            
+            private var mainLayout: PrompterLayout? = null
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 
-                // إنشاء حاوية عادية دون إسنادها لأي متغير
-                val mainContainer = LinearLayout(this)
-                mainContainer.orientation = LinearLayout.VERTICAL
-                mainContainer.setBackgroundColor(Color.BLACK)
+                val prompterContainer = PrompterLayout(this)
+                mainLayout = prompterContainer
                 
-                val customScrollView = ScrollView(this)
-                
-                val pTextView = TextView(this)
-                pTextView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
-                pTextView.textSize = 28f
-                pTextView.setTextColor(Color.WHITE)
-                pTextView.gravity = Gravity.CENTER_HORIZONTAL
-                pTextView.typeface = Typeface.DEFAULT_BOLD
-                pTextView.lineSpacingMultiplier = 1.4f
-
-                val textLayoutConfig = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                textLayoutConfig.setMargins(40, 100, 40, 600)
-
-                // تركيب الشجرة
-                customScrollView.addView(pTextView, textLayoutConfig)
-                
-                val viewGroupConfig = ViewGroup.LayoutParams(
+                val layoutParamsConfig = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                mainContainer.addView(customScrollView, viewGroupConfig)
                 
-                // الاستدعاء الصريح والآمن للأب لمنع تعارض الـ Val تماماً
-                super.setContentView(mainContainer, viewGroupConfig)
+                setContentView(prompterContainer, layoutParamsConfig)
+            }
 
-                // تفعيل المحرك التكراري بشكل محلي مغلق
-                val scrollHandler = Handler(Looper.getMainLooper())
-                val scrollRunnable = object : Runnable {
-                    override fun run() {
-                        customScrollView.smoothScrollBy(0, 3)
-                        scrollHandler.postDelayed(this, 40)
-                    }
-                }
-                scrollHandler.postDelayed(scrollRunnable, 1000)
+            override fun onResume() {
+                super.onResume()
+                mainLayout?.startMoving()
+            }
+
+            override fun onPause() {
+                super.onPause()
+                mainLayout?.stopMoving()
             }
         }
         EOF
