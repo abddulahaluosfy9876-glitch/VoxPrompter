@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تطبيق بروتوكول التسمية الفريدة لضمان عزل المتغيرات المحلية تماماً عن الـ Activity
+    # تطبيق بروتوكول التجريد: بناء الشجرة برمجياً بدون تعيين متغيرات لمنع خطأ الـ Val تماماً
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -64,7 +64,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن مع حماية كاملة للمتغيرات المحلية عبر التسمية الفريدة العازلة للـ Val
+        # 3. كود كوتلن مجرد ومحمي برمجياً من أخطاء الـ Val Reassignment
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -85,53 +85,47 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 
-                // عزل معاملات كائن الأبعاد تماماً
-                val voxScreenParams = ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-
-                // 1. الحاوية الرئيسية بأسماء مخصصة فريدة
-                val voxMainLayout = LinearLayout(this).apply {
+                // إنشاء الحاوية الرئيسية وضبط خصائصها مباشرة دون إسنادها لمتغير
+                setContentView(LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setBackgroundColor(Color.BLACK)
-                }
-
-                // 2. حاوية التمرير محمية من أي تشابه مع دوال المترجم الأساسية
-                val voxScrollView = ScrollView(this)
-
-                // 3. عنصر النص البرامبتر الممتد المخصص
-                val voxTextView = TextView(this)
-                voxTextView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
-                voxTextView.textSize = 28f
-                voxTextView.setTextColor(Color.WHITE)
-                voxTextView.gravity = Gravity.CENTER_HORIZONTAL
-                voxTextView.typeface = Typeface.DEFAULT_BOLD
-                voxTextView.lineSpacingMultiplier = 1.4f
-
-                val voxTextParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                voxTextParams.setMargins(40, 100, 40, 600)
-
-                // 4. دمج وتشييد العناصر برمجياً بطريقة آمنة
-                voxScrollView.addView(voxTextView, voxTextParams)
-                voxMainLayout.addView(voxScrollView, voxScreenParams)
-                
-                setContentView(voxMainLayout, voxScreenParams)
-
-                // 5. محرك تمرير تلقائي برمز مغلق فريد منعاً لخلط الثوابت في المترجم
-                val voxHandler = Handler(Looper.getMainLooper())
-                val voxRunnable = object : Runnable {
-                    override fun run() {
-                        voxScrollView.smoothScrollBy(0, 3)
-                        voxHandler.postDelayed(this, 40)
-                    }
-                }
-                
-                // الإطلاق الآمن بعد ثانية كاملة
-                voxHandler.postDelayed(voxRunnable, 1000)
+                    
+                    // إضافة ScrollView وتمريرها مباشرة ككائن مجهول الاسم
+                    addView(ScrollView(context).apply {
+                        
+                        // إضافة عنصر النص وضبط خصائصه داخلياً
+                        addView(TextView(context).apply {
+                            text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
+                            textSize = 28f
+                            setTextColor(Color.WHITE)
+                            gravity = Gravity.CENTER_HORIZONTAL
+                            typeface = Typeface.DEFAULT_BOLD
+                            lineSpacingMultiplier = 1.4f
+                        }, LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        ).apply {
+                            setMargins(40, 100, 40, 600)
+                        })
+                        
+                        // تشغيل محرك التمرير التلقائي بالاعتماد على الكائن الحالي مباشرة (this)
+                        val handler = Handler(Looper.getMainLooper())
+                        val runnable = object : Runnable {
+                            override fun run() {
+                                smoothScrollBy(0, 3)
+                                handler.postDelayed(this, 40)
+                            }
+                        }
+                        handler.postDelayed(runnable, 1000)
+                        
+                    }, ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    ))
+                }, ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                ))
             }
         }
         EOF
