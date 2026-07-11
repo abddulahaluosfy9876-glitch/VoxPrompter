@@ -28,24 +28,22 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # خطوة حقن حجر الأساس: بناء هيكل بسيط وخالٍ من التعقيدات
-    - name: Baseline Clean Injection
+    # مهمة واحدة: بناء الهيكل الهيكلي الصافي (Blank Dark Window)
+    - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. المانيفست الأساسي والافتراضي
+        # 1. مانيفست افتراضي بدون تعقيدات ثيمات مخصصة
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="com.example.voxprompter">
             <application
                 android:allowBackup="true"
-                android:label="VoxPrompter"
-                android:supportsRtl="true"
-                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+                android:label="VoxPrompter">
                 <activity
                     android:name="com.example.voxprompter.MainActivity"
                     android:exported="true">
@@ -58,66 +56,23 @@ jobs:
         </manifest>
         EOF
 
-        # 2. ملفات الموارد الأساسية المستقرة
-        cat << 'EOF' > app/src/main/res/values/strings.xml
-        <resources>
-            <string name="app_name">VoxPrompter</string>
-        </resources>
-        EOF
-
-        cat << 'EOF' > app/src/main/res/values/styles.xml
-        <resources>
-            <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
-            </style>
-        </resources>
-        EOF
-
-        # 3. كود واجهة حجر الأساس: نص واضح داخل حاوية مستقرة جداً
+        # 2. كود نشاط فارغ تماماً يعرض شاشة سوداء آمنة هندسياً وخالية من أي خطأ
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
+        import android.app.Activity
         import android.graphics.Color
-        import android.graphics.Typeface
         import android.os.Bundle
-        import android.view.Gravity
-        import android.view.ViewGroup
         import android.widget.LinearLayout
-        import android.widget.TextView
-        import androidx.appcompat.app.AppCompatActivity
 
-        class MainActivity : AppCompatActivity() {
-
+        class MainActivity : Activity() {
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
-
-                // إنشاء واجهة أساسية سوداء مستقرة للغاية
-                val mainLayout = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setBackgroundColor(Color.parseColor("#121212"))
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.MATCH_PARENT
-                    )
-                    gravity = Gravity.CENTER
-                }
-
-                val textView = TextView(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        setMargins(50, 50, 50, 50)
-                    }
-                    text = "مرحباً بك في VoxPrompter!\n\nتم وضع حجر الأساس بنجاح والتطبيق يعمل الآن باستقرار كامل.\n\nفي الخطوة القادمة سنضيف التمرير التلقائي."
-                    textSize = 24f
-                    setTextColor(Color.WHITE)
-                    gravity = Gravity.CENTER
-                    typeface = Typeface.DEFAULT_BOLD
-                    lineSpacingMultiplier = 1.3f
-                }
-
-                mainLayout.addView(textView)
-                setContentView(mainLayout)
+                
+                val view = LinearLayout(this)
+                view.setBackgroundColor(Color.BLACK)
+                
+                setContentView(view)
             }
         }
         EOF
