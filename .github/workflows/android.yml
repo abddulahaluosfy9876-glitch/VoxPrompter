@@ -28,11 +28,33 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    - name: Force Clean And Inject Code
+    # خطوة هندسية حاسمة: بناء مجلدات الأكواد والموارد الصافية لتجاوز فحص AAPT2
+    - name: Force Clean And Inject Code With Resources
       run: |
+        # 1. تنظيف وبناء مسار الكود المصدري
         rm -rf app/src/main/java
         mkdir -p app/src/main/java/com/example/voxprompter
         
+        # 2. تنظيف وبناء مسار الموارد الإلزامية لتفادي أخطاء المترجم
+        rm -rf app/src/main/res/values
+        mkdir -p app/src/main/res/values
+        
+        # حقن ملف strings.xml الأساسي
+        cat << 'EOF' > app/src/main/res/values/strings.xml
+        <resources>
+            <string name="app_name">VoxPrompter</string>
+        </resources>
+        EOF
+
+        # حقن ملف styles.xml لتعريف الثيم وحسم مشكلة المقارنة
+        cat << 'EOF' > app/src/main/res/values/styles.xml
+        <resources>
+            <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+            </style>
+        </resources>
+        EOF
+
+        # 3. كتابة ملف MainActivity الاحترافي
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
