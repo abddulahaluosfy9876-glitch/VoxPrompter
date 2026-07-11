@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تنظيف شامل وحقن الهيكل البرمجي المعزول بدون استخدام المتغيرات المتداخلة
+    # حقن الكود بالبنية المفككة الآمنة تماماً من مشاكل الـ Val
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -37,7 +37,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. مانيفست قياسي
+        # 1. المانيفست القياسي
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -65,7 +65,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن الجديد - تم حل مشكلة التداخل بفصل التكرار في دالة برمجية مستقلة
+        # 3. كود كوتلن المعزول برمجياً والمؤمن ضد أخطاء التهيئة الدائرية
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -84,13 +84,20 @@ jobs:
             private var scrollerView: ScrollView? = null
             private val mainHandler = Handler(Looper.getMainLooper())
             
-            // تعريف الـ Runnable باستخدام دالة داخلية وتجنب استخدام كلمة `object` تماماً لحل خطأ المترجم الجذري
-            private val scrollRunnable = Runnable { 
-                startAutoScroll() 
-            }
+            // 1. تعريف المرجع كـ var قابل للتأجيل لمنع اصطدام المترجم أثناء التهيئة البدئية
+            private var scrollRunnable: Runnable? = null
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
+
+                // 2. تهيئة الـ Runnable هنا بشكل منفصل بعد بناء الكلاس تماماً
+                scrollRunnable = object : Runnable {
+                    override fun run() {
+                        scrollerView?.smoothScrollBy(0, 3)
+                        // استدعاء آمن ومفكك كلياً
+                        scrollRunnable?.let { mainHandler.postDelayed(it, 40) }
+                    }
+                }
 
                 val scrollView = ScrollView(this)
                 scrollView.setBackgroundColor(Color.BLACK)
@@ -110,20 +117,14 @@ jobs:
                 setContentView(scrollView)
             }
 
-            // دالة مستقلة لإدارة التمرير وإعادة الجدولة دون أي تداخل في المراجع البرمجية
-            private fun startAutoScroll() {
-                scrollerView?.smoothScrollBy(0, 3)
-                mainHandler.postDelayed(scrollRunnable, 40)
-            }
-
             override fun onResume() {
                 super.onResume()
-                mainHandler.postDelayed(scrollRunnable, 1000)
+                scrollRunnable?.let { mainHandler.postDelayed(it, 1000) }
             }
 
             override fun onPause() {
                 super.onPause()
-                mainHandler.removeCallbacks(scrollRunnable)
+                scrollRunnable?.let { mainHandler.removeCallbacks(it) }
             }
         }
         EOF
