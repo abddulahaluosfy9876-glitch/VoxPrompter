@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تنظيف شامل وحقن بروتوكول التبسيط المطلق القياسي
+    # تنظيف جذري شامل وحقن الهيكل القياسي الأبسط في تاريخ أندرويد
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -65,7 +65,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن القياسي التقليدي المبسط الخالي من أي تعارض خصائص
+        # 3. كود كوتلن الصافي والمحمي 100% (بدون تخطيطات معقدة وبدون أي مراجع مشتركة)
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -76,76 +76,57 @@ jobs:
         import android.os.Handler
         import android.os.Looper
         import android.view.Gravity
-        import android.view.ViewGroup
-        import android.widget.LinearLayout
         import android.widget.ScrollView
         import android.widget.TextView
 
         class MainActivity : Activity() {
 
-            private var globalScroller: ScrollView? = null
-            private val scrollHandler = Handler(Looper.getMainLooper())
+            private var scrollerView: ScrollView? = null
+            private val mainHandler = Handler(Looper.getMainLooper())
             
-            // تعريف العداد بطريقة كلاسيكية مغلقة تماماً لمنع خطأ الـ Val Reassignment
-            private val scrollRunnable = object : Runnable {
+            // عداد الحركة التكراري المعزول كلياً
+            private val scrollTicker = object : Runnable {
                 override fun run() {
-                    val scroller = globalScroller
-                    if (scroller != null) {
-                        scroller.smoothScrollBy(0, 3)
-                    }
-                    scrollHandler.postDelayed(this, 40)
+                    scrollerView?.smoothScrollBy(0, 3)
+                    mainHandler.postDelayed(this, 40)
                 }
             }
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
 
-                // 1. إنشاء الحاوية الرئيسية القياسية
-                val mainLayout = LinearLayout(this)
-                mainLayout.orientation = LinearLayout.VERTICAL
-                mainLayout.setBackgroundColor(Color.BLACK)
-
-                // 2. إنشاء كائن التمرير وإسناده للمتغير العام
+                // إنشاء حاوية التمرير مباشرة كواجهة رئيسية للنشاط
                 val scrollView = ScrollView(this)
-                globalScroller = scrollView
+                scrollView.setBackgroundColor(Color.BLACK)
+                scrollerView = scrollView
 
-                // 3. إنشاء وإعداد عنصر النص الترحيبي
-                val txtView = TextView(this)
-                txtView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
-                txtView.textSize = 28f
-                txtView.setTextColor(Color.WHITE)
-                txtView.gravity = Gravity.CENTER_HORIZONTAL
-                txtView.typeface = Typeface.DEFAULT_BOLD
-                txtView.lineSpacingMultiplier = 1.4f
-
-                // إعداد حواف النص البرمجية التقليدية
-                val textParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                textParams.setMargins(40, 100, 40, 600)
-
-                // تركيب العناصر داخل شجرة العرض القياسية
-                scrollView.addView(txtView, textParams)
+                // إنشاء وإعداد خطبة وجسم النص
+                val textView = TextView(this)
+                textView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
+                textView.textSize = 28f
+                textView.setTextColor(Color.WHITE)
+                textView.gravity = Gravity.CENTER_HORIZONTAL
+                textView.typeface = Typeface.DEFAULT_BOLD
+                textView.lineSpacingMultiplier = 1.4f
                 
-                val parentParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.MATCH_PARENT
-                )
-                mainLayout.addView(scrollView, parentParams)
+                // استخدام الـ Padding الآمن بدلاً من الـ Margins لضمان المساحة التمريرية السفلى وعزل الكود
+                textView.setPadding(40, 100, 40, 800)
 
-                // تعيين الواجهة بشكل مباشر وآمن للأب
-                this.setContentView(mainLayout)
+                // دمج النص داخل حاوية التمرير مباشرة دون أي وسائط أخرى
+                scrollView.addView(textView)
+                
+                // تعيين الواجهة النقية
+                setContentView(scrollView)
             }
 
             override fun onResume() {
                 super.onResume()
-                scrollHandler.postDelayed(scrollRunnable, 1000)
+                mainHandler.postDelayed(scrollTicker, 1000)
             }
 
             override fun onPause() {
                 super.onPause()
-                scrollHandler.removeCallbacks(scrollRunnable)
+                mainHandler.removeCallbacks(scrollTicker)
             }
         }
         EOF
