@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # حقن الكود بالبنية المفككة الآمنة تماماً من مشاكل الـ Val
+    # تطبيق مقترح المهندس: مهمة واحدة بسيطة جداً (إنشاء الحاوية الصافية) لضمان استقرار المترجم
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -37,7 +37,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. المانيفست القياسي
+        # 1. مانيفست افتراضي نقي وثابت
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -65,66 +65,25 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن المعزول برمجياً والمؤمن ضد أخطاء التهيئة الدائرية
+        # 3. كود كوتلن فائق التبسيط: شاشة سوداء وحاوية تمرير فقط لا غير
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.app.Activity
         import android.graphics.Color
-        import android.graphics.Typeface
         import android.os.Bundle
-        import android.os.Handler
-        import android.os.Looper
-        import android.view.Gravity
         import android.widget.ScrollView
-        import android.widget.TextView
 
         class MainActivity : Activity() {
-
-            private var scrollerView: ScrollView? = null
-            private val mainHandler = Handler(Looper.getMainLooper())
-            
-            // 1. تعريف المرجع كـ var قابل للتأجيل لمنع اصطدام المترجم أثناء التهيئة البدئية
-            private var scrollRunnable: Runnable? = null
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
 
-                // 2. تهيئة الـ Runnable هنا بشكل منفصل بعد بناء الكلاس تماماً
-                scrollRunnable = object : Runnable {
-                    override fun run() {
-                        scrollerView?.smoothScrollBy(0, 3)
-                        // استدعاء آمن ومفكك كلياً
-                        scrollRunnable?.let { mainHandler.postDelayed(it, 40) }
-                    }
-                }
-
-                val scrollView = ScrollView(this)
-                scrollView.setBackgroundColor(Color.BLACK)
-                scrollerView = scrollView
-
-                val textView = TextView(this)
-                textView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
-                textView.textSize = 28f
-                textView.setTextColor(Color.WHITE)
-                textView.gravity = Gravity.CENTER_HORIZONTAL
-                textView.typeface = Typeface.DEFAULT_BOLD
-                textView.lineSpacingMultiplier = 1.4f
+                // مهمة واحدة: إنشاء حاوية التمرير باللون الأسود وتعيينها واجهة للتطبيق
+                val mainScrollView = ScrollView(this)
+                mainScrollView.setBackgroundColor(Color.BLACK)
                 
-                textView.setPadding(40, 100, 40, 800)
-                scrollView.addView(textView)
-                
-                setContentView(scrollView)
-            }
-
-            override fun onResume() {
-                super.onResume()
-                scrollRunnable?.let { mainHandler.postDelayed(it, 1000) }
-            }
-
-            override fun onPause() {
-                super.onPause()
-                scrollRunnable?.let { mainHandler.removeCallbacks(it) }
+                setContentView(mainScrollView)
             }
         }
         EOF
