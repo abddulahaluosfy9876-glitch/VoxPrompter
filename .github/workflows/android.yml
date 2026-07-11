@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # حقن الحجر الخامس: دمج ميزة التمرير التلقائي السلس بأمان كامل
+    # حقن الحجر السادس: إضافة محرك تسجيل صوتي عالي الجودة وحفظه تلقائياً
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -37,11 +37,14 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. مانيفست افتراضي نقي وثابت
+        # 1. مانيفست نقي وثابت مع إضافة صلاحية المايكروفون الأساسية للتسجيل
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="com.example.voxprompter">
+            
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            
             <application
                 android:allowBackup="true"
                 android:label="VoxPrompter"
@@ -65,27 +68,31 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن: تفعيل محرك التمرير التلقائي عبر فصل منطق الحركة بأمان
+        # 3. كود كوتلن: دمج محرك التسجيل وحفظ الملفات بشكل آمن ودون اصطدامات
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.app.Activity
         import android.graphics.Color
         import android.graphics.Typeface
+        import android.media.MediaRecorder
         import android.os.Bundle
         import android.os.Handler
         import android.os.Looper
         import android.view.Gravity
         import android.widget.ScrollView
         import android.widget.TextView
+        import java.io.File
 
         class MainActivity : Activity() {
 
             private var scrollerView: ScrollView? = null
             private val mainHandler = Handler(Looper.getMainLooper())
-            
-            // تعريف المرجع كـ var قابل للتأجيل لمنع اصطدام المترجم أثناء التهيئة البدئية
             private var scrollRunnable: Runnable? = null
+            
+            // تعريف كائنات محرك الصوت والملفات بأسلوب مرن ومستقل
+            private var audioRecorder: MediaRecorder? = null
+            private var audioFile: File? = null
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
@@ -95,7 +102,7 @@ jobs:
                 scrollerView = mainScrollView
                 
                 val prompterTextView = TextView(this)
-                prompterTextView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو النص الذكي المنسق بجودة عالية لتسهيل القراءة.\n\nتم ضبط حجم الخط ليكون كبيراً وواضحاً، وتم توسيع الفراغات بين الأسطر لراحة العين أثناء الإلقاء والتسجيل الصوتي.\n\nالآن، بعد استقرار الواجهة، يعمل محرك الحركة التلقائية على تمرير الأسطر برفق ونعومة للأعلى.\n\nفي الخطوات القادمة، سنضيف ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك."
+                prompterTextView.text = "ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك.\n\nالآن وأنت تقرأ هذا النص المنسق والمتحرك تلقائياً، يقوم محرك VoxPrompter الصوتي بالاستماع إليك وتسجيل نبرات صوتك بجودة ونقاء عاليين.\n\nبمجرد خروجك أو إيقاف التطبيق، سيتم حفظ المقطع الصوتي المسجل فوراً داخل ذاكرة جهازك الآمنة لتتمكن من مشاركته لاحقاً بكل سهولة وحرية وبأعلى جودة ممكنة."
                 
                 prompterTextView.setTextSize(28f)
                 prompterTextView.setTextColor(Color.WHITE)
@@ -107,10 +114,12 @@ jobs:
                 mainScrollView.addView(prompterTextView)
                 setContentView(mainScrollView)
 
-                // بناء التكرار البرمجي للحركة التلقائية بشكل معزول وآمن
+                // تجهيز ملف الحفظ الصوتي النقي في مساحة التخزين الداخلية للجهاز
+                audioFile = File(externalCacheDir ?: cacheDir, "VoxPrompter_Record.amr")
+
                 scrollRunnable = object : Runnable {
                     override fun run() {
-                        scrollerView?.smoothScrollBy(0, 3) // تحريك بمقدار 3 بكسل للوصول لنعومة حركة فائقة
+                        scrollerView?.smoothScrollBy(0, 3)
                         scrollRunnable?.let { mainHandler.postDelayed(it, 40) }
                     }
                 }
@@ -118,14 +127,38 @@ jobs:
 
             override fun onResume() {
                 super.onResume()
-                // بدء التحريك التلقائي بعد ثانية واحدة من فتح التطبيق لإعطاء المستخدم مهلة للاستعداد
+                // 1. بدء التمرير التلقائي بعد ثانية واحدة
                 scrollRunnable?.let { mainHandler.postDelayed(it, 1000) }
+                
+                // 2. تشغيل محرك التسجيل الصوتي عالي الجودة بالتزامن التام
+                try {
+                    audioRecorder = MediaRecorder().apply {
+                        setAudioSource(MediaRecorder.AudioSource.MIC)
+                        setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)
+                        setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                        setOutputFile(audioFile?.absolutePath)
+                        prepare()
+                        start()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             }
 
             override fun onPause() {
                 super.onPause()
-                // إيقاف العداد فوراً عند الخروج لحماية بطارية وذاكرة الهاتف
                 scrollRunnable?.let { mainHandler.removeCallbacks(it) }
+                
+                // إيقاف التسجيل بأمان تام وحفظ الملف الصوتي فوراً عند الخروج لحفظ جهد المستخدم
+                try {
+                    audioRecorder?.apply {
+                        stop()
+                        release()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                audioRecorder = null
             }
         }
         EOF
