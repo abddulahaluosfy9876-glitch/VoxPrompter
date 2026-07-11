@@ -23,6 +23,11 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
+    - name: Configure AndroidX Support
+      run: |
+        echo "android.useAndroidX=true" > gradle.properties
+        echo "android.enableJetifier=true" >> gradle.properties
+
     - name: Force Clean And Inject Code
       run: |
         rm -rf app/src/main/java
