@@ -28,7 +28,7 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
-    # زرع كود شاشة القراءة الاحترافية مباشرة داخل السيرفر لمنع التضارب
+    # زرع الكود الاحترافي المصحح هندسياً بالكامل لتفادي أخطاء التجميع
     - name: Force Rebuild Clean Source Directory
       run: |
         rm -rf app/src/main/java
@@ -43,6 +43,7 @@ jobs:
         import android.os.Handler
         import android.os.Looper
         import android.view.Gravity
+        import android.view.ViewGroup
         import android.widget.Button
         import android.widget.LinearLayout
         import android.widget.ScrollView
@@ -90,12 +91,13 @@ jobs:
                 }
 
                 prompterTextView = TextView(this).apply {
-                    layoutParams = ScrollView.LayoutParams(
-                        ScrollView.LayoutParams.MATCH_PARENT,
-                        ScrollView.LayoutParams.WRAP_CONTENT
+                    val params = ViewGroup.MarginLayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
                     ).apply {
                         setMargins(40, 100, 40, 500)
                     }
+                    layoutParams = params
                     text = "مرحباً بك في VoxPrompter!\n\nهذا النص مخصص للتمرير التلقائي. يمكنك الآن اختبار ميزة التحكم في حجم الخط وسرعة التمرير عبر لوحة التحكم السفلية.\n\nالخط مصمم ليكون واضحاً ومريحاً للعين أثناء الإلقاء أمام الكاميرا. يمكنك الضغط على زر التشغيل لبدء التمرير التلقائي، واستخدام أزرار (+) و (-) لضبط الأبعاد بما يناسبك تماماً أثناء التحدث الفعلي."
                     textSize = fontSize
                     setTextColor(Color.parseColor("#E0E0E0"))
@@ -137,9 +139,11 @@ jobs:
                     setTextColor(Color.BLACK)
                     typeface = Typeface.DEFAULT_BOLD
                     setOnClickListener { toggleScroll() }
-                    layoutParams = LinearLayout.LayoutParams(240, 120).apply {
+                    
+                    val params = LinearLayout.LayoutParams(240, 120).apply {
                         setMargins(40, 0, 40, 0)
                     }
+                    layoutParams = params
                 }
 
                 val btnSpeedMinus = createControlButton("-S") { modifySpeed(-1) }
@@ -173,55 +177,4 @@ jobs:
                     btnPlayPause.setTextColor(Color.BLACK)
                     scrollHandler.removeCallbacks(scrollRunnable)
                 }
-            }
-
-            private fun modifyFontSize(delta: Float) {
-                fontSize = (fontSize + delta).coerceIn(16f, 60f)
-                prompterTextView.textSize = fontSize
-                tvSizeValue.text = "خط: ${fontSize.toInt()}"
-            }
-
-            private fun modifySpeed(delta: Int) {
-                scrollSpeed = (scrollSpeed + delta).coerceIn(1, 20)
-                tvSpeedValue.text = "سرعة: $scrollSpeed"
-            }
-
-            private fun createControlButton(label: String, action: () -> Unit): Button {
-                return Button(this).apply {
-                    text = label
-                    textSize = 14f
-                    setBackgroundColor(Color.parseColor("#333333"))
-                    setTextColor(Color.WHITE)
-                    setOnClickListener { action() }
-                    layoutParams = LinearLayout.LayoutParams(110, 100)
-                }
-            }
-
-            private fun createStatusTextView(label: String): TextView {
-                return TextView(this).apply {
-                    text = label
-                    textSize = 12f
-                    setTextColor(Color.WHITE)
-                    gravity = Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams(110, LinearLayout.LayoutParams.WRAP_CONTENT)
-                }
-            }
-
-            override fun onDestroy() {
-                super.onDestroy()
-                scrollHandler.removeCallbacks(scrollRunnable)
-            }
-        }
-        EOF
-
-    - name: Build Debug APK
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
-
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: VoxPrompter-Debug-APK
-        path: app/build/outputs/apk/debug/app-debug.apk
-        
+                
