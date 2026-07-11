@@ -28,15 +28,15 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # خطوة التطهير والحقن البرمجي المحمي والمستقر
-    - name: Deep Purge And Absolute Clean Injection
+    # خطوة حقن حجر الأساس: بناء هيكل بسيط وخالٍ من التعقيدات
+    - name: Baseline Clean Injection
       run: |
         find . -name "Main.kt" -type f -delete
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. المانيفست المعتمد والمستقر
+        # 1. المانيفست الأساسي والافتراضي
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -45,7 +45,7 @@ jobs:
                 android:allowBackup="true"
                 android:label="VoxPrompter"
                 android:supportsRtl="true"
-                android:theme="@style/Theme.AppCompat.NoActionBar">
+                android:theme="@style/Theme.AppCompat.Light.NoActionBar">
                 <activity
                     android:name="com.example.voxprompter.MainActivity"
                     android:exported="true">
@@ -58,7 +58,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. ملفات الموارد الأساسية
+        # 2. ملفات الموارد الأساسية المستقرة
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
@@ -67,198 +67,57 @@ jobs:
 
         cat << 'EOF' > app/src/main/res/values/styles.xml
         <resources>
-            <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+            <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
             </style>
         </resources>
         EOF
 
-        # 3. زرع كود الواجهة الاحترافية مع فرض الثيم المظلم برمجياً لمنع الـ Crash
+        # 3. كود واجهة حجر الأساس: نص واضح داخل حاوية مستقرة جداً
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.graphics.Color
         import android.graphics.Typeface
         import android.os.Bundle
-        import android.os.Handler
-        import android.os.Looper
         import android.view.Gravity
         import android.view.ViewGroup
-        import android.widget.Button
         import android.widget.LinearLayout
-        import android.widget.ScrollView
         import android.widget.TextView
         import androidx.appcompat.app.AppCompatActivity
 
         class MainActivity : AppCompatActivity() {
 
-            private var fontSize = 28f
-            private var scrollSpeed = 5
-            private var isScrolling = false
-
-            private lateinit var scrollView: ScrollView
-            private lateinit var prompterTextView: TextView
-            private lateinit var btnPlayPause: Button
-            private lateinit var tvSpeedValue: TextView
-            private lateinit var tvSizeValue: TextView
-
-            private val scrollHandler = Handler(Looper.getMainLooper())
-            private val scrollRunnable = object : Runnable {
-                override fun run() {
-                    if (isScrolling) {
-                        scrollView.smoothScrollBy(0, scrollSpeed)
-                        scrollHandler.postDelayed(this, 30)
-                    }
-                }
-            }
-
             override fun onCreate(savedInstanceState: Bundle?) {
-                // فرض ثيم AppCompat برمجياً في أول سطر لحل مشكلة الانهيار تماماً
-                setTheme(androidx.appcompat.R.style.Theme_AppCompat_NoActionBar)
                 super.onCreate(savedInstanceState)
 
+                // إنشاء واجهة أساسية سوداء مستقرة للغاية
                 val mainLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setBackgroundColor(Color.parseColor("#121212"))
-                    weightSum = 10f
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.MATCH_PARENT
                     )
-                }
-
-                scrollView = ScrollView(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        0,
-                        8.5f
-                    )
-                    isVerticalScrollBarEnabled = false
-                }
-
-                prompterTextView = TextView(this).apply {
-                    val params = ViewGroup.MarginLayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT
-                    ).apply {
-                        setMargins(40, 100, 40, 500)
-                    }
-                    layoutParams = params
-                    text = "مرحباً بك في VoxPrompter!\n\nهذا النص مخصص للتمرير التلقائي. يمكنك الآن اختبار ميزة التحكم في حجم الخط وسرعة التمرير عبر لوحة التحكم السفلية.\n\nالخط مصمم ليكون واضحاً ومريحاً للعين أثناء الإلقاء أمام الكاميرا. يمكنك الضغط على زر التشغيل لبدء التمرير التلقائي، واستخدام أزرار (+) و (-) لضبط الأبعاد بما يناسبك تماماً أثناء التحدث الفعلي."
-                    textSize = fontSize
-                    setTextColor(Color.parseColor("#E0E0E0"))
-                    gravity = Gravity.CENTER_HORIZONTAL
-                    typeface = Typeface.DEFAULT_BOLD
-                    lineSpacingMultiplier = 1.3f
-                }
-                scrollView.addView(prompterTextView)
-                mainLayout.addView(scrollView)
-
-                val controlPanel = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setBackgroundColor(Color.parseColor("#1F1F1F"))
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        0,
-                        1.5f
-                    )
                     gravity = Gravity.CENTER
-                    setPadding(20, 10, 20, 10)
                 }
 
-                val controlsRow = LinearLayout(this).apply {
-                    orientation = LinearLayout.HORIZONTAL
-                    gravity = Gravity.CENTER
+                val textView = TextView(this).apply {
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
-                }
-
-                val btnSizeMinus = createControlButton("-A") { modifyFontSize(-4f) }
-                tvSizeValue = createStatusTextView("خط: 28")
-                val btnSizePlus = createControlButton("+A") { modifyFontSize(4f) }
-
-                btnPlayPause = Button(this).apply {
-                    text = "▶ تشغيل"
-                    setBackgroundColor(Color.parseColor("#00E676"))
-                    setTextColor(Color.BLACK)
-                    typeface = Typeface.DEFAULT_BOLD
-                    setOnClickListener { toggleScroll() }
-                    
-                    val params = LinearLayout.LayoutParams(240, 120).apply {
-                        setMargins(40, 0, 40, 0)
+                    ).apply {
+                        setMargins(50, 50, 50, 50)
                     }
-                    layoutParams = params
-                }
-
-                val btnSpeedMinus = createControlButton("-S") { modifySpeed(-1) }
-                tvSpeedValue = createStatusTextView("سرعة: 5")
-                val btnSpeedPlus = createControlButton("+S") { modifySpeed(1) }
-
-                controlsRow.addView(btnSizeMinus)
-                controlsRow.addView(tvSizeValue)
-                controlsRow.addView(btnSizePlus)
-                controlsRow.addView(btnPlayPause)
-                controlsRow.addView(btnSpeedMinus)
-                controlsRow.addView(tvSpeedValue)
-                controlsRow.addView(btnSpeedPlus)
-
-                controlPanel.addView(controlsRow)
-                mainLayout.addView(controlPanel)
-
-                setContentView(mainLayout)
-            }
-
-            private fun toggleScroll() {
-                isScrolling = !isScrolling
-                if (isScrolling) {
-                    btnPlayPause.text = "⏸ إيقاف"
-                    btnPlayPause.setBackgroundColor(Color.parseColor("#FF1744"))
-                    btnPlayPause.setTextColor(Color.WHITE)
-                    scrollHandler.post(scrollRunnable)
-                } else {
-                    btnPlayPause.text = "▶ تشغيل"
-                    btnPlayPause.setBackgroundColor(Color.parseColor("#00E676"))
-                    btnPlayPause.setTextColor(Color.BLACK)
-                    scrollHandler.removeCallbacks(scrollRunnable)
-                }
-            }
-
-            private fun modifyFontSize(delta: Float) {
-                fontSize = (fontSize + delta).coerceIn(16f, 60f)
-                prompterTextView.textSize = fontSize
-                tvSizeValue.text = "خط: " + fontSize.toInt().toString()
-            }
-
-            private fun modifySpeed(delta: Int) {
-                scrollSpeed = (scrollSpeed + delta).coerceIn(1, 20)
-                tvSpeedValue.text = "سرعة: " + scrollSpeed.toString()
-            }
-
-            private fun createControlButton(label: String, action: () -> Unit): Button {
-                return Button(this).apply {
-                    text = label
-                    textSize = 14f
-                    setBackgroundColor(Color.parseColor("#333333"))
-                    setTextColor(Color.WHITE)
-                    setOnClickListener { action() }
-                    layoutParams = LinearLayout.LayoutParams(110, 100)
-                }
-            }
-
-            private fun createStatusTextView(label: String): TextView {
-                return TextView(this).apply {
-                    text = label
-                    textSize = 12f
+                    text = "مرحباً بك في VoxPrompter!\n\nتم وضع حجر الأساس بنجاح والتطبيق يعمل الآن باستقرار كامل.\n\nفي الخطوة القادمة سنضيف التمرير التلقائي."
+                    textSize = 24f
                     setTextColor(Color.WHITE)
                     gravity = Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams(110, LinearLayout.LayoutParams.WRAP_CONTENT)
+                    typeface = Typeface.DEFAULT_BOLD
+                    lineSpacingMultiplier = 1.3f
                 }
-            }
 
-            override fun onDestroy() {
-                super.onDestroy()
-                scrollHandler.removeCallbacks(scrollRunnable)
+                mainLayout.addView(textView)
+                setContentView(mainLayout)
             }
         }
         EOF
