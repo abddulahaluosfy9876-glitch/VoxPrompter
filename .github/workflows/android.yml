@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # حقن الحجر السادس: إضافة محرك تسجيل صوتي عالي الجودة وحفظه تلقائياً
+    # حقن الحجر السابع: إضافة واجهة تحكم بسيطة وزر مشاركة المقطع الصوتي الصافي
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -37,7 +37,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. مانيفست نقي وثابت مع إضافة صلاحية المايكروفون الأساسية للتسجيل
+        # 1. مانيفست نقي وثابت مع صلاحية المايكروفون الأساسية
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -57,31 +57,56 @@ jobs:
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
                 </activity>
+                
+                <provider
+                    android:name="androidx.core.content.FileProvider"
+                    android:authorities="com.example.voxprompter.fileprovider"
+                    android:exported="false"
+                    android:grantUriPermissions="true">
+                    <meta-data
+                        android:name="android.support.FILE_PROVIDER_PATHS"
+                        android:resource="@xml/file_paths" />
+                </provider>
             </application>
         </manifest>
         EOF
 
-        # 2. ملف الموارد الأساسي
+        # 2. إنشاء مجلد وملف مسارات حماية مشاركة الملفات الصريحة
+        mkdir -p app/src/main/res/xml
+        cat << 'EOF' > app/src/main/res/xml/file_paths.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <paths>
+            <external-cache-path name="external_cache" path="." />
+            <cache-path name="internal_cache" path="." />
+        </paths>
+        EOF
+
+        # 3. ملف الموارد الأساسي
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
         </resources>
         EOF
 
-        # 3. كود كوتلن: دمج محرك التسجيل وحفظ الملفات بشكل آمن ودون اصطدامات
+        # 4. كود كوتلن: دمج واجهة المشاركة الفورية للملف الصوتي عبر نظام الأندرويد الرسمي
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.app.Activity
+        import android.content.Intent
         import android.graphics.Color
         import android.graphics.Typeface
         import android.media.MediaRecorder
+        import android.net.Uri
         import android.os.Bundle
         import android.os.Handler
         import android.os.Looper
         import android.view.Gravity
+        import android.widget.Button
+        import android.widget.FrameLayout
         import android.widget.ScrollView
         import android.widget.TextView
+        import androidx.core.content.FileProvider
         import java.io.File
 
         class MainActivity : Activity() {
@@ -90,31 +115,57 @@ jobs:
             private val mainHandler = Handler(Looper.getMainLooper())
             private var scrollRunnable: Runnable? = null
             
-            // تعريف كائنات محرك الصوت والملفات بأسلوب مرن ومستقل
             private var audioRecorder: MediaRecorder? = null
             private var audioFile: File? = null
+            private var isRecording = false
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
 
+                // إنشاء حاوية رئيسية مطلقة لتركيب الزر العائم فوق النص المتحرك
+                val mainLayout = FrameLayout(this)
+                mainLayout.setBackgroundColor(Color.BLACK)
+
                 val mainScrollView = ScrollView(this)
-                mainScrollView.setBackgroundColor(Color.BLACK)
                 scrollerView = mainScrollView
                 
                 val prompterTextView = TextView(this)
-                prompterTextView.text = "ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك.\n\nالآن وأنت تقرأ هذا النص المنسق والمتحرك تلقائياً، يقوم محرك VoxPrompter الصوتي بالاستماع إليك وتسجيل نبرات صوتك بجودة ونقاء عاليين.\n\nبمجرد خروجك أو إيقاف التطبيق، سيتم حفظ المقطع الصوتي المسجل فوراً داخل ذاكرة جهازك الآمنة لتتمكن من مشاركته لاحقاً بكل سهولة وحرية وبأعلى جودة ممكنة."
+                prompterTextView.text = "ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك.\n\nالآن وأنت تقرأ هذا النص المنسق والمتحرك تلقائياً، يقوم محرك VoxPrompter الصوتي بالاستماع إليك وتسجيل نبرات صوتك بجودة ونقاء عاليين.\n\nبمجرد الانتهاء، يمكنك الضغط على الزر الأحمر في الأسفل لإيقاف التسجيل التلقائي ومشاركة ملفك الصوتي فوراً وبكل سهولة مع أصدقائك أو تطبيقاتك المفضلة."
                 
                 prompterTextView.setTextSize(28f)
                 prompterTextView.setTextColor(Color.WHITE)
                 prompterTextView.setGravity(Gravity.CENTER_HORIZONTAL)
                 prompterTextView.setTypeface(Typeface.DEFAULT_BOLD)
                 prompterTextView.setLineSpacing(0f, 1.5f)
-                prompterTextView.setPadding(45, 100, 45, 800)
+                prompterTextView.setPadding(45, 100, 45, 900)
 
                 mainScrollView.addView(prompterTextView)
-                setContentView(mainScrollView)
+                mainLayout.addView(mainScrollView)
 
-                // تجهيز ملف الحفظ الصوتي النقي في مساحة التخزين الداخلية للجهاز
+                // إضافة زر تحكم ومشاركة سفلي وعائم بشكل مريح لليدين
+                val actionButton = Button(this)
+                actionButton.text = "إيقاف ومشاركة الصوت 📤"
+                actionButton.setBackgroundColor(Color.parseColor("#E53935"))
+                actionButton.setTextColor(Color.WHITE)
+                actionButton.setTypeface(Typeface.DEFAULT_BOLD)
+                actionButton.setTextSize(18f)
+
+                val btnParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                )
+                btnParams.setMargins(50, 0, 50, 60)
+                actionButton.layoutParams = btnParams
+                
+                // تفعيل منطق المشاركة عند الضغط على الزر
+                actionButton.setOnClickListener {
+                    stopRecordingAndShare()
+                }
+                
+                mainLayout.addView(actionButton)
+                setContentView(mainLayout)
+
                 audioFile = File(externalCacheDir ?: cacheDir, "VoxPrompter_Record.amr")
 
                 scrollRunnable = object : Runnable {
@@ -125,12 +176,48 @@ jobs:
                 }
             }
 
+            private fun stopRecordingAndShare() {
+                // 1. إيقاف المحرك الحركي
+                scrollRunnable?.let { mainHandler.removeCallbacks(it) }
+                
+                // 2. إيقاف محرك التسجيل
+                if (isRecording) {
+                    try {
+                        audioRecorder?.stop()
+                        audioRecorder?.release()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    audioRecorder = null
+                    isRecording = false
+                }
+
+                // 3. إطلاق ميزة التمرير الذكي والمشاركة عبر نظام أندرويد
+                audioFile?.let { file ->
+                    if (file.exists()) {
+                        try {
+                            val fileUri: Uri = FileProvider.getUriForFile(
+                                this,
+                                "com.example.voxprompter.fileprovider",
+                                file
+                            )
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "audio/amr"
+                                putExtra(Intent.EXTRA_STREAM, fileUri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            startActivity(Intent.createChooser(shareIntent, "شارك تسجيلك الصوتي عبر:"))
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+            }
+
             override fun onResume() {
                 super.onResume()
-                // 1. بدء التمرير التلقائي بعد ثانية واحدة
                 scrollRunnable?.let { mainHandler.postDelayed(it, 1000) }
                 
-                // 2. تشغيل محرك التسجيل الصوتي عالي الجودة بالتزامن التام
                 try {
                     audioRecorder = MediaRecorder().apply {
                         setAudioSource(MediaRecorder.AudioSource.MIC)
@@ -140,6 +227,7 @@ jobs:
                         prepare()
                         start()
                     }
+                    isRecording = true
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -148,17 +236,16 @@ jobs:
             override fun onPause() {
                 super.onPause()
                 scrollRunnable?.let { mainHandler.removeCallbacks(it) }
-                
-                // إيقاف التسجيل بأمان تام وحفظ الملف الصوتي فوراً عند الخروج لحفظ جهد المستخدم
-                try {
-                    audioRecorder?.apply {
-                        stop()
-                        release()
+                if (isRecording) {
+                    try {
+                        audioRecorder?.stop()
+                        audioRecorder?.release()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                    audioRecorder = null
+                    isRecording = false
                 }
-                audioRecorder = null
             }
         }
         EOF
