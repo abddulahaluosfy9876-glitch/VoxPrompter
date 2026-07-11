@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تطبيق بروتوكول المراجعة: حقن كود نقي يتفادى خطأ الثوابت عبر الدالة الرسمية
+    # تطبيق بروتوكول جيت هاب: بناء الواجهة عبر تمرير الأبعاد أثناء الإضافة فقط (Zero Property Modification)
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -64,7 +64,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود واجهة نقي تماماً يستخدم setLayoutParams لحسم مشكلة الـ Val
+        # 3. كود كوتلن نقي يتجنب تعديل layoutParams تماماً لمنع أخطاء الثوابت
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -81,7 +81,7 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 
-                // 1. بناء الحاوية الرئيسية الخلفية واستهداف الدالة الرسمية للأبعاد
+                // 1. بناء الحاوية الرئيسية الخلفية
                 val mainLayout = LinearLayout(this)
                 mainLayout.orientation = LinearLayout.VERTICAL
                 mainLayout.setBackgroundColor(Color.BLACK)
@@ -90,17 +90,15 @@ jobs:
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.MATCH_PARENT
                 )
-                mainLayout.setLayoutParams(mainParams)
 
-                // 2. بناء حاوية التمرير واستهداف الدالة الرسمية للأبعاد
+                // 2. بناء حاوية التمرير المرنة
                 val scrollView = ScrollView(this)
                 val scrollParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.MATCH_PARENT
                 )
-                scrollView.setLayoutParams(scrollParams)
 
-                // 3. بناء وتجهيز عنصر النص بشكل مستقل وآمن
+                // 3. بناء وتجهيز عنصر النص (بدون لمس الـ layoutParams الخاصة به)
                 val textView = TextView(this)
                 textView.text = "مرحباً بك في VoxPrompter!\n\nتم إرساء حجر الأساس الثاني بنجاح.\n\nالآن تم حقن النص وتمرير الأبعاد بالطريقة الرسمية الصافية لمنع أخطاء السيرفر."
                 textView.textSize = 26f
@@ -114,13 +112,12 @@ jobs:
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
                 textParams.setMargins(40, 80, 40, 80)
-                textView.setLayoutParams(textParams)
 
-                // 4. تركيب العناصر وتثبيتها بالترتيب الصحيح
-                scrollView.addView(textView)
-                mainLayout.addView(scrollView)
+                // 4. السحر الهندسي الحقيقي: تمرير الأبعاد كمعاملات داخل الدالة لضمان الاستقرار الحتمي
+                scrollView.addView(textView, textParams)
+                mainLayout.addView(scrollView, scrollParams)
                 
-                setContentView(mainLayout)
+                setContentView(mainLayout, mainParams)
             }
         }
         EOF
