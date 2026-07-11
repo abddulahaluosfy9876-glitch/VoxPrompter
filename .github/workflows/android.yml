@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # المهمة الثانية: إدخال حاوية التمرير اليدوي والنص الثابت فقط
+    # المهمة الثانية (معدلة ومضمونة): نص ثابت داخل حاوية تمرير بثيم نقي
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -36,13 +36,15 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
+        # 1. مانيفست بثيم أسود افتراضي نقي 100% يمنع خطأ المراجع
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="com.example.voxprompter">
             <application
                 android:allowBackup="true"
-                android:label="VoxPrompter">
+                android:label="VoxPrompter"
+                android:theme="@android:style/Theme.Black.NoTitleBar">
                 <activity
                     android:name="com.example.voxprompter.MainActivity"
                     android:exported="true">
@@ -55,6 +57,14 @@ jobs:
         </manifest>
         EOF
 
+        # 2. ملف الموارد الأساسي الفارغ
+        cat << 'EOF' > app/src/main/res/values/strings.xml
+        <resources>
+            <string name="app_name">VoxPrompter</string>
+        </resources>
+        EOF
+
+        # 3. كود واجهة برمجية نقي يعتمد على Activity الأساسي المستقر
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -72,7 +82,6 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 
-                // حاوية الجذر
                 val mainLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setBackgroundColor(Color.BLACK)
@@ -82,7 +91,6 @@ jobs:
                     )
                 }
 
-                // حاوية التمرير الآمنة للنصوص
                 val scrollView = ScrollView(this).apply {
                     layoutParams = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
@@ -90,7 +98,6 @@ jobs:
                     )
                 }
 
-                // النص المراد عرضه وقراءته
                 val textView = TextView(this).apply {
                     val params = ViewGroup.MarginLayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
@@ -99,9 +106,9 @@ jobs:
                         setMargins(40, 80, 40, 80)
                     }
                     layoutParams = params
-                    text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثاني المكتمل. تم إدخال النص بنجاح داخل حاوية مرنة.\n\nتأكد الآن من ظهور هذا النص بوضوح على الشاشة السوداء وثباته قبل الانتقال للمهمة التالية."
+                    text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثاني المكتمل.\n\nتم إدخال النص بنجاح داخل حاوية مرنة وثيم مستقل نقي."
                     textSize = 26f
-                    setTextColor(Color.parseColor("#E0E0E0"))
+                    setTextColor(Color.WHITE)
                     gravity = Gravity.CENTER_HORIZONTAL
                     typeface = Typeface.DEFAULT_BOLD
                     lineSpacingMultiplier = 1.3f
