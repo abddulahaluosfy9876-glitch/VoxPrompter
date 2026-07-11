@@ -8,10 +8,10 @@
         android:label="VoxPrompter"
         android:roundIcon="@android:drawable/sym_def_app_icon"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.Light.NoTitleBar">
+        android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.voxprompter.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -22,3 +22,4 @@
     </application>
 
 </manifest>
+
