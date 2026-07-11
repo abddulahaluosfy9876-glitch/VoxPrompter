@@ -20,16 +20,10 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Inject Gradle Properties
-      run: |
-        echo "android.useAndroidX=true" > gradle.properties
-        echo "org.gradle.jvmargs=-Xmx2048m" >> gradle.properties
-
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
 
-    # زرع الكود الاحترافي المصحح هندسياً بالكامل لتفادي أخطاء التجميع
-    - name: Force Rebuild Clean Source Directory
+    - name: Force Clean And Inject Code
       run: |
         rm -rf app/src/main/java
         mkdir -p app/src/main/java/com/example/voxprompter
@@ -177,4 +171,55 @@ jobs:
                     btnPlayPause.setTextColor(Color.BLACK)
                     scrollHandler.removeCallbacks(scrollRunnable)
                 }
-                
+            }
+
+            private fun modifyFontSize(delta: Float) {
+                fontSize = (fontSize + delta).coerceIn(16f, 60f)
+                prompterTextView.textSize = fontSize
+                tvSizeValue.text = "خط: ${fontSize.toInt()}"
+            }
+
+            private fun modifySpeed(delta: Int) {
+                scrollSpeed = (scrollSpeed + delta).coerceIn(1, 20)
+                tvSpeedValue.text = "سرعة: $scrollSpeed"
+            }
+
+            private fun createControlButton(label: String, action: () -> Unit): Button {
+                return Button(this).apply {
+                    text = label
+                    textSize = 14f
+                    setBackgroundColor(Color.parseColor("#333333"))
+                    setTextColor(Color.WHITE)
+                    setOnClickListener { action() }
+                    layoutParams = LinearLayout.LayoutParams(110, 100)
+                }
+            }
+
+            private fun createStatusTextView(label: String): TextView {
+                return TextView(this).apply {
+                    text = label
+                    textSize = 12f
+                    setTextColor(Color.WHITE)
+                    gravity = Gravity.CENTER
+                    layoutParams = LinearLayout.LayoutParams(110, LinearLayout.LayoutParams.WRAP_CONTENT)
+                }
+            }
+
+            override fun onDestroy() {
+                super.onDestroy()
+                scrollHandler.removeCallbacks(scrollRunnable)
+            }
+        }
+        EOF
+
+    - name: Build Debug APK
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: Upload Debug APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: VoxPrompter-Debug-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
+        
