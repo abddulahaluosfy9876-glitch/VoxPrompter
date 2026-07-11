@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # خطوة التطهير وبناء الهيكل المستقل تماماً عن الثيمات العالقة
+    # خطوة التطهير والحقن البرمجي المحمي والمستقر
     - name: Deep Purge And Absolute Clean Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -36,7 +36,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. بناء مانيفست مرن للغاية يستخدم الثيم الافتراضي للنظام لمنع أي تعارض
+        # 1. المانيفست المعتمد والمستقر
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -44,7 +44,8 @@ jobs:
             <application
                 android:allowBackup="true"
                 android:label="VoxPrompter"
-                android:supportsRtl="true">
+                android:supportsRtl="true"
+                android:theme="@style/Theme.AppCompat.NoActionBar">
                 <activity
                     android:name="com.example.voxprompter.MainActivity"
                     android:exported="true">
@@ -57,18 +58,24 @@ jobs:
         </manifest>
         EOF
 
-        # 2. بناء ملفات الموارد الصافية
+        # 2. ملفات الموارد الأساسية
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
         </resources>
         EOF
 
-        # 3. زرع كود الواجهة الاحترافية المعتمد على Activity الصافي والمستقر كلياً
+        cat << 'EOF' > app/src/main/res/values/styles.xml
+        <resources>
+            <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
+            </style>
+        </resources>
+        EOF
+
+        # 3. زرع كود الواجهة الاحترافية مع فرض الثيم المظلم برمجياً لمنع الـ Crash
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
-        import android.app.Activity
         import android.graphics.Color
         import android.graphics.Typeface
         import android.os.Bundle
@@ -80,8 +87,9 @@ jobs:
         import android.widget.LinearLayout
         import android.widget.ScrollView
         import android.widget.TextView
+        import androidx.appcompat.app.AppCompatActivity
 
-        class MainActivity : Activity() {
+        class MainActivity : AppCompatActivity() {
 
             private var fontSize = 28f
             private var scrollSpeed = 5
@@ -104,6 +112,8 @@ jobs:
             }
 
             override fun onCreate(savedInstanceState: Bundle?) {
+                // فرض ثيم AppCompat برمجياً في أول سطر لحل مشكلة الانهيار تماماً
+                setTheme(androidx.appcompat.R.style.Theme_AppCompat_NoActionBar)
                 super.onCreate(savedInstanceState)
 
                 val mainLayout = LinearLayout(this).apply {
