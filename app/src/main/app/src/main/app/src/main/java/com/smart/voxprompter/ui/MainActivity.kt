@@ -4,20 +4,21 @@ import android.os.Bundle
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.TextView
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // إنشاء واجهة برمجية صافية ومباشرة بدون الاعتماد على أي ثيم أو مكتبة خارجية
+        // إنشاء حاوية الواجهة
         val rootLayout = FrameLayout(this).apply {
-            setBackgroundColor(0xFFFFFFFF.toInt()) // خلفية بيضاء صريحة
+            setBackgroundColor(0xFFFFFFFF.toInt()) // خلفية بيضاء صافية
         }
         
+        // إنشاء نص الترحيب
         val textView = TextView(this).apply {
             text = "Welcome to VoxPrompter!\nApplication Started Successfully."
-            textSize = 22f
+            textSize = 24f
             setTextColor(0xFF000000.toInt()) // نص أسود صريح
             gravity = Gravity.CENTER
         }
