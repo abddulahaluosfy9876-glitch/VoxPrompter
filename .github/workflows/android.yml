@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # حقن الحجر التاسع المصحح: استخدام دالة setPadding الرسمية لمنع أخطاء الترجمة
+    # حقن الحجر العاشر: تحويل النافذة العائمة الثابتة إلى شاشة تفاعلية مرنة قابلة للسحب والتحريك الكامل
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -37,7 +37,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. مانيفست متكامل يحتوي على الصلاحيات ويسجل الخدمة الخلفية
+        # 1. المانيفست الرسمي للتطبيق
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -77,7 +77,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. ملف مسارات الحماية ومشاركة الملفات الصوتية
+        # 2. ملف مسارات الحماية ومشاركة الملفات
         mkdir -p app/src/main/res/xml
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
@@ -94,7 +94,7 @@ jobs:
         </resources>
         EOF
 
-        # 4. كود كوتلن (1): تصحيح دالة الـ Padding إلى setPadding لضمان البناء المستقر
+        # 4. كود كوتلن (1): إضافة منطق حركة السحب (Draggable) الرياضي المتناسق داخل الخدمة العائمة
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/FloatingService.kt
         package com.example.voxprompter
 
@@ -107,6 +107,8 @@ jobs:
         import android.os.Build
         import android.os.IBinder
         import android.view.Gravity
+        import android.view.MotionEvent
+        import android.view.View
         import android.view.WindowManager
         import android.widget.Button
         import android.widget.LinearLayout
@@ -126,12 +128,11 @@ jobs:
                 floatingLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setBackgroundColor(Color.parseColor("#CC000000"))
-                    // التصحيح هنا: استخدام دالة أندرويد الرسمية لتعيين الحواف الداخلية
                     setPadding(30, 30, 30, 30)
                 }
 
                 val floatingText = TextView(this).apply {
-                    text = "الملقن الذكي العائم يعمل الآن بنجاح..\nيمكنك القراءة والتسجيل في نفس الوقت!"
+                    text = "الملقن الذكي العائم يعمل الآن بنجاح..\nاسحب الشاشة من هنا لتحريكها لأي مكان!"
                     setTextColor(Color.WHITE)
                     textSize = 18f
                     typeface = Typeface.DEFAULT_BOLD
@@ -161,6 +162,7 @@ jobs:
                     WindowManager.LayoutParams.TYPE_PHONE
                 }
 
+                // تجهيز متغيرات العرض المبدئية للنافذة العائمة
                 val params = WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
                     450,
@@ -168,10 +170,39 @@ jobs:
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                     PixelFormat.TRANSLUCENT
                 ).apply {
-                    gravity = Gravity.TOP
+                    gravity = Gravity.TOP or Gravity.START
                     x = 0
-                    y = 100
+                    y = 200
                 }
+
+                // حقن مستمع اللمس الذكي لالتقاط حركات السحب برمجياً وتعديل الإحداثيات لحظياً
+                floatingLayout?.setOnTouchListener(object : View.OnTouchListener {
+                    private var initialX = 0
+                    private var initialY = 0
+                    private var initialTouchX = 0f
+                    private var initialTouchY = 0f
+
+                    override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                        if (event == null) return false
+                        when (event.action) {
+                            MotionEvent.ACTION_DOWN -> {
+                                initialX = params.x
+                                initialY = params.y
+                                initialTouchX = event.rawX
+                                initialTouchY = event.rawY
+                                return true
+                            }
+                            MotionEvent.ACTION_MOVE -> {
+                                params.x = initialX + (event.rawX - initialTouchX).toInt()
+                                params.y = initialY + (event.rawY - initialTouchY).toInt()
+                                // تحديث موضع النافذة على الشاشة فوراً عند تحريك إصبع المستخدم
+                                windowManager?.updateViewLayout(floatingLayout, params)
+                                return true
+                            }
+                        }
+                        return false
+                    }
+                })
 
                 windowManager?.addView(floatingLayout, params)
             }
@@ -189,7 +220,7 @@ jobs:
         }
         EOF
 
-        # 5. كود كوتلن (2): النشاط الرئيسي المستقر لتشغيل خدمة الملقن العائم
+        # 5. كود كوتلن (2): النشاط الرئيسي المستقر والمجرب مسبقاً بنجاح
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
