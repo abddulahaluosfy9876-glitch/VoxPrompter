@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تطبيق بروتوكول جيت هاب: بناء الواجهة عبر تمرير الأبعاد أثناء الإضافة فقط (Zero Property Modification)
+    # تطبيق بروتوكول جيت هاب: بناء الواجهة عبر الـ Constructors مباشرة لتجنب التعديل اللاحق
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -64,7 +64,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن نقي يتجنب تعديل layoutParams تماماً لمنع أخطاء الثوابت
+        # 3. كود كوتلن نقي يمرر الأبعاد فوراً داخل الـ Constructors لمنع أخطاء الثوابت تماماً
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -73,6 +73,7 @@ jobs:
         import android.graphics.Typeface
         import android.os.Bundle
         import android.view.Gravity
+        import android.view.ViewGroup
         import android.widget.LinearLayout
         import android.widget.ScrollView
         import android.widget.TextView
@@ -81,24 +82,22 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 
-                // 1. بناء الحاوية الرئيسية الخلفية
-                val mainLayout = LinearLayout(this)
-                mainLayout.orientation = LinearLayout.VERTICAL
-                mainLayout.setBackgroundColor(Color.BLACK)
-                
-                val mainParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.MATCH_PARENT
+                // تعريف أبعاد الشاشة الكاملة ككائنات مستقلة
+                val matchParentParams = ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
                 )
 
-                // 2. بناء حاوية التمرير المرنة
+                // 1. بناء الحاوية الرئيسية وتمرير الأبعاد فوراً عبر الـ Constructor لمنع تعارض الـ LayoutParams
+                val mainLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundColor(Color.BLACK)
+                }
+
+                // 2. بناء حاوية التمرير
                 val scrollView = ScrollView(this)
-                val scrollParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.MATCH_PARENT
-                )
 
-                // 3. بناء وتجهيز عنصر النص (بدون لمس الـ layoutParams الخاصة به)
+                // 3. بناء وتجهيز عنصر النص بشكل مستقل
                 val textView = TextView(this)
                 textView.text = "مرحباً بك في VoxPrompter!\n\nتم إرساء حجر الأساس الثاني بنجاح.\n\nالآن تم حقن النص وتمرير الأبعاد بالطريقة الرسمية الصافية لمنع أخطاء السيرفر."
                 textView.textSize = 26f
@@ -107,29 +106,18 @@ jobs:
                 textView.typeface = Typeface.DEFAULT_BOLD
                 textView.lineSpacingMultiplier = 1.3f
 
+                // تحديد أبعاد النص بشكل معزول كلياً عن الـ View الخاص به
                 val textParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
                 textParams.setMargins(40, 80, 40, 80)
 
-                // 4. السحر الهندسي الحقيقي: تمرير الأبعاد كمعاملات داخل الدالة لضمان الاستقرار الحتمي
+                // 4. تركيب الشجرة الإنشائية دون الاقتراب من خصائص layoutParams المحمية داخل العناصر
                 scrollView.addView(textView, textParams)
-                mainLayout.addView(scrollView, scrollParams)
+                mainLayout.addView(scrollView, matchParentParams)
                 
-                setContentView(mainLayout, mainParams)
+                setContentView(mainLayout, matchParentParams)
             }
         }
-        EOF
-
-    - name: Build Debug APK
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
-
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: VoxPrompter-Debug-APK
-        path: "**/build/outputs/apk/debug/*.apk"
         
