@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # حقن الواجهة بأكثر الأساليب البرمجية استقراراً لتفادي تشتت المترجم كلياً
+    # حقن الحجر الخامس: دمج ميزة التمرير التلقائي السلس بأمان كامل
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -65,7 +65,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن: استخدام الدوال المباشرة والصريحة لمنع حدوث التباس Val تماماً
+        # 3. كود كوتلن: تفعيل محرك التمرير التلقائي عبر فصل منطق الحركة بأمان
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -73,32 +73,59 @@ jobs:
         import android.graphics.Color
         import android.graphics.Typeface
         import android.os.Bundle
+        import android.os.Handler
+        import android.os.Looper
         import android.view.Gravity
         import android.widget.ScrollView
         import android.widget.TextView
 
         class MainActivity : Activity() {
 
+            private var scrollerView: ScrollView? = null
+            private val mainHandler = Handler(Looper.getMainLooper())
+            
+            // تعريف المرجع كـ var قابل للتأجيل لمنع اصطدام المترجم أثناء التهيئة البدئية
+            private var scrollRunnable: Runnable? = null
+
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
 
                 val mainScrollView = ScrollView(this)
                 mainScrollView.setBackgroundColor(Color.BLACK)
+                scrollerView = mainScrollView
                 
                 val prompterTextView = TextView(this)
-                prompterTextView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو النص الذكي المنسق بجودة عالية لتسهيل القراءة.\n\nتم ضبط حجم الخط ليكون كبيراً وواضحاً، وتم توسيع الفراغات بين الأسطر لراحة العين أثناء الإلقاء والتسجيل الصوتي.\n\nفي الخطوات القادمة، سنضيف ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك."
+                prompterTextView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو النص الذكي المنسق بجودة عالية لتسهيل القراءة.\n\nتم ضبط حجم الخط ليكون كبيراً وواضحاً، وتم توسيع الفراغات بين الأسطر لراحة العين أثناء الإلقاء والتسجيل الصوتي.\n\nالآن، بعد استقرار الواجهة، يعمل محرك الحركة التلقائية على تمرير الأسطر برفق ونعومة للأعلى.\n\nفي الخطوات القادمة، سنضيف ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك."
                 
-                // استخدام الدوال المباشرة بدلاً من سطر المساواة لقطع الطريق تماماً على أي خطأ في الترجمة
                 prompterTextView.setTextSize(28f)
                 prompterTextView.setTextColor(Color.WHITE)
                 prompterTextView.setGravity(Gravity.CENTER_HORIZONTAL)
                 prompterTextView.setTypeface(Typeface.DEFAULT_BOLD)
                 prompterTextView.setLineSpacing(0f, 1.5f)
-                
-                prompterTextView.setPadding(45, 100, 45, 600)
+                prompterTextView.setPadding(45, 100, 45, 800)
 
                 mainScrollView.addView(prompterTextView)
                 setContentView(mainScrollView)
+
+                // بناء التكرار البرمجي للحركة التلقائية بشكل معزول وآمن
+                scrollRunnable = object : Runnable {
+                    override fun run() {
+                        scrollerView?.smoothScrollBy(0, 3) // تحريك بمقدار 3 بكسل للوصول لنعومة حركة فائقة
+                        scrollRunnable?.let { mainHandler.postDelayed(it, 40) }
+                    }
+                }
+            }
+
+            override fun onResume() {
+                super.onResume()
+                // بدء التحريك التلقائي بعد ثانية واحدة من فتح التطبيق لإعطاء المستخدم مهلة للاستعداد
+                scrollRunnable?.let { mainHandler.postDelayed(it, 1000) }
+            }
+
+            override fun onPause() {
+                super.onPause()
+                // إيقاف العداد فوراً عند الخروج لحماية بطارية وذاكرة الهاتف
+                scrollRunnable?.let { mainHandler.removeCallbacks(it) }
             }
         }
         EOF
