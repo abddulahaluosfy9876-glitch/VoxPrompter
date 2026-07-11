@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.Gravity
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -14,9 +15,8 @@ import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
 
-    // المتغيرات البرمجية للتحكم في النص والسرعة
     private var fontSize = 28f
-    private var scrollSpeed = 5 // القيمة الافتراضية للسرعة
+    private var scrollSpeed = 5
     private var isScrolling = false
 
     private lateinit var scrollView: ScrollView
@@ -29,9 +29,7 @@ class MainActivity : AppCompatActivity() {
     private val scrollRunnable = object : Runnable {
         override fun run() {
             if (isScrolling) {
-                // تمرير الشاشة لأسفل بناءً على السرعة المحددة
                 scrollView.smoothScrollBy(0, scrollSpeed)
-                // إعادة التشغيل بشكل دوري للحصول على تمرير ناعم
                 scrollHandler.postDelayed(this, 30)
             }
         }
@@ -40,55 +38,51 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 1. الحاوية الرئيسية للتطبيق (ترتيب رأسي - ثيم غامق)
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#121212")) // أسود مريح للعين
+            setBackgroundColor(Color.parseColor("#121212"))
             weightSum = 10f
         }
 
-        // 2. حاوية النص القابلة للتمرير (ScrollView)
         scrollView = ScrollView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
-                8.5f // تأخذ 85% من مساحة الشاشة
+                8.5f
             )
             isVerticalScrollBarEnabled = false
         }
 
-        // 3. نص الـ Teleprompter الترحيبي (قابل للتغيير لاحقاً)
         prompterTextView = TextView(this).apply {
-            layoutParams = ScrollView.LayoutParams(
-                ScrollView.LayoutParams.MATCH_PARENT,
-                ScrollView.LayoutParams.WRAP_CONTENT
+            val params = ViewGroup.MarginLayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply {
-                setMargins(40, 100, 40, 500) // هوامش علوية وسفلية مريحة للقراءة
+                setMargins(40, 100, 40, 500)
             }
+            layoutParams = params
             text = "مرحباً بك في VoxPrompter!\n\nهذا النص مخصص للتمرير التلقائي. يمكنك الآن اختبار ميزة التحكم في حجم الخط وسرعة التمرير عبر لوحة التحكم السفلية.\n\nالخط مصمم ليكون واضحاً ومريحاً للعين أثناء الإلقاء أمام الكاميرا. يمكنك الضغط على زر التشغيل لبدء التمرير التلقائي، واستخدام أزرار (+) و (-) لضبط الأبعاد بما يناسبك تماماً أثناء التحدث الفعلي."
             textSize = fontSize
-            setTextColor(Color.parseColor("#E0E0E0")) // لون نص أبيض خفيف
+            setTextColor(Color.parseColor("#E0E0E0"))
             gravity = Gravity.CENTER_HORIZONTAL
             typeface = Typeface.DEFAULT_BOLD
-            lineSpacingMultiplier = 1.3f // مسافة مريحة بين السطور
+            lineSpacingMultiplier = 1.3f
         }
         scrollView.addView(prompterTextView)
         mainLayout.addView(scrollView)
 
-        // 4. لوحة التحكم السفلية (Control Panel)
         val controlPanel = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.parseColor("#1F1F1F")) // رمادي داكن للوحة
+            setBackgroundColor(Color.parseColor("#1F1F1F"))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 0,
-                1.5f // تأخذ 15% من مساحة الشاشة
+                1.5f
             )
             gravity = Gravity.CENTER
             setPadding(20, 10, 20, 10)
         }
 
-        // صف التحكم بالخط والسرعة
         val controlsRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
@@ -98,29 +92,27 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        // أزرار التحكم في الخط
         val btnSizeMinus = createControlButton("-A") { modifyFontSize(-4f) }
-        tvSizeValue = createStatusTextView("خط: ${fontSize.toInt()}")
+        tvSizeValue = createStatusTextView("خط: 28")
         val btnSizePlus = createControlButton("+A") { modifyFontSize(4f) }
 
-        // زر التشغيل والإيقاف الرئيسي في المنتصف
         btnPlayPause = Button(this).apply {
             text = "▶ تشغيل"
-            setBackgroundColor(Color.parseColor("#00E676")) // لون أخضر جذاب
+            setBackgroundColor(Color.parseColor("#00E676"))
             setTextColor(Color.BLACK)
             typeface = Typeface.DEFAULT_BOLD
             setOnClickListener { toggleScroll() }
-            layoutParams = LinearLayout.LayoutParams(240, 120).apply {
+            
+            val params = LinearLayout.LayoutParams(240, 120).apply {
                 setMargins(40, 0, 40, 0)
             }
+            layoutParams = params
         }
 
-        // أزرار التحكم في السرعة
         val btnSpeedMinus = createControlButton("-S") { modifySpeed(-1) }
-        tvSpeedValue = createStatusTextView("سرعة: $scrollSpeed")
+        tvSpeedValue = createStatusTextView("سرعة: 5")
         val btnSpeedPlus = createControlButton("+S") { modifySpeed(1) }
 
-        // تجميع العناصر داخل صف التحكم
         controlsRow.addView(btnSizeMinus)
         controlsRow.addView(tvSizeValue)
         controlsRow.addView(btnSizePlus)
@@ -135,36 +127,32 @@ class MainActivity : AppCompatActivity() {
         setContentView(mainLayout)
     }
 
-    // دالة تشغيل وإيقاف التمرير التلقائي
     private fun toggleScroll() {
         isScrolling = !isScrolling
         if (isScrolling) {
             btnPlayPause.text = "⏸ إيقاف"
-            btnPlayPause.setBackgroundColor(Color.parseColor("#FF1744")) // أحمر عند الإيقاف
+            btnPlayPause.setBackgroundColor(Color.parseColor("#FF1744"))
             btnPlayPause.setTextColor(Color.WHITE)
             scrollHandler.post(scrollRunnable)
         } else {
             btnPlayPause.text = "▶ تشغيل"
-            btnPlayPause.setBackgroundColor(Color.parseColor("#00E676")) // أخضر عند التشغيل
+            btnPlayPause.setBackgroundColor(Color.parseColor("#00E676"))
             btnPlayPause.setTextColor(Color.BLACK)
             scrollHandler.removeCallbacks(scrollRunnable)
         }
     }
 
-    // دالة تعديل حجم الخط
     private fun modifyFontSize(delta: Float) {
         fontSize = (fontSize + delta).coerceIn(16f, 60f)
         prompterTextView.textSize = fontSize
-        tvSizeValue.text = "خط: ${fontSize.toInt()}"
+        tvSizeValue.text = "خط: " + fontSize.toInt().toString()
     }
 
-    // دالة تعديل السرعة
     private fun modifySpeed(delta: Int) {
         scrollSpeed = (scrollSpeed + delta).coerceIn(1, 20)
-        tvSpeedValue.text = "سرعة: $scrollSpeed"
+        tvSpeedValue.text = "سرعة: " + scrollSpeed.toString()
     }
 
-    // دالة مساعدة لإنشاء أزرار التحكم الصغيرة
     private fun createControlButton(label: String, action: () -> Unit): Button {
         return Button(this).apply {
             text = label
@@ -176,7 +164,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // دالة مساعدة لإنشاء نصوص الحالة الرقمية
     private fun createStatusTextView(label: String): TextView {
         return TextView(this).apply {
             text = label
@@ -189,6 +176,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        scrollHandler.removeCallbacks(scrollRunnable) // منع تسريب الذاكرة عند إغلاق التطبيق
+        scrollHandler.removeCallbacks(scrollRunnable)
     }
 }
