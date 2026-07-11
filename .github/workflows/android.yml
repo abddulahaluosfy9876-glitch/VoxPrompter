@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # خطوة التطهير والبناء النظيف
+    # خطوة التطهير والبناء المحصن هندسياً
     - name: Deep Purge And Absolute Clean Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -36,6 +36,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
+        # 1. بناء مانيفست محصن بالثيم الصحيح
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -44,7 +45,7 @@ jobs:
                 android:allowBackup="true"
                 android:label="VoxPrompter"
                 android:supportsRtl="true"
-                android:theme="@style/AppTheme">
+                android:theme="@style/Theme.AppCompat.NoActionBar">
                 <activity
                     android:name="com.example.voxprompter.MainActivity"
                     android:exported="true">
@@ -57,6 +58,7 @@ jobs:
         </manifest>
         EOF
 
+        # 2. بناء ملفات الموارد الأساسية لضمان استقرار أندرويد
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
@@ -65,11 +67,12 @@ jobs:
 
         cat << 'EOF' > app/src/main/res/values/styles.xml
         <resources>
-            <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+            <style name="AppTheme" parent="Theme.AppCompat.NoActionBar">
             </style>
         </resources>
         EOF
 
+        # 3. زرع كود الواجهة الاحترافية مع معاملات أمان إضافية لمنع الـ Crash
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -111,10 +114,15 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
 
+                // إنشاء تخطيط الجذر الرئيسي مع تأمين الأبعاد الأساسية للمنع الانهيار
                 val mainLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setBackgroundColor(Color.parseColor("#121212"))
                     weightSum = 10f
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.MATCH_PARENT
+                    )
                 }
 
                 scrollView = ScrollView(this).apply {
@@ -137,7 +145,7 @@ jobs:
                     text = "مرحباً بك في VoxPrompter!\n\nهذا النص مخصص للتمرير التلقائي. يمكنك الآن اختبار ميزة التحكم في حجم الخط وسرعة التمرير عبر لوحة التحكم السفلية.\n\nالخط مصمم ليكون واضحاً ومريحاً للعين أثناء الإلقاء أمام الكاميرا. يمكنك الضغط على زر التشغيل لبدء التمرير التلقائي، واستخدام أزرار (+) و (-) لضبط الأبعاد بما يناسبك تماماً أثناء التحدث الفعلي."
                     textSize = fontSize
                     setTextColor(Color.parseColor("#E0E0E0"))
-                    gravity = Gravity.CENTER
+                    gravity = Gravity.CENTER_HORIZONTAL
                     typeface = Typeface.DEFAULT_BOLD
                     lineSpacingMultiplier = 1.3f
                 }
@@ -226,43 +234,5 @@ jobs:
                 tvSpeedValue.text = "سرعة: " + scrollSpeed.toString()
             }
 
-            private fun createControlButton(label: String, action: () -> Unit): Button {
-                return Button(this).apply {
-                    text = label
-                    textSize = 14f
-                    setBackgroundColor(Color.parseColor("#333333"))
-                    setTextColor(Color.WHITE)
-                    setOnClickListener { action() }
-                    layoutParams = LinearLayout.LayoutParams(110, 100)
-                }
-            }
-
-            private fun createStatusTextView(label: String): TextView {
-                return TextView(this).apply {
-                    text = label
-                    textSize = 12f
-                    setTextColor(Color.WHITE)
-                    gravity = Gravity.CENTER
-                    layoutParams = LinearLayout.LayoutParams(110, LinearLayout.LayoutParams.WRAP_CONTENT)
-                }
-            }
-
-            override fun onDestroy() {
-                super.onDestroy()
-                scrollHandler.removeCallbacks(scrollRunnable)
-            }
-        }
-        EOF
-
-    - name: Build Debug APK
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
-
-    # تعديل مسار الالتقاط بشكل ذكي وشامل لرفع الـ APK فوراً من أي مكان تم توليده فيه
-    - name: Upload Debug APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: VoxPrompter-Debug-APK
-        path: "**/build/outputs/apk/debug/*.apk"
-        
+            private fun createControlButton
+            
