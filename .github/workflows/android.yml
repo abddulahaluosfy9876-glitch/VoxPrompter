@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تنظيف شامل وحقن الهيكل البرمجي المعزول بالكامل بدون استخدام المتغيرات المتداخلة
+    # تنظيف شامل وحقن الهيكل البرمجي المعزول بدون استخدام المتغيرات المتداخلة
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -65,7 +65,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن الصافي الخالي تماماً من المعالجات المتداخلة (استخدام الـ Lambda لمنع خطأ الـ Val)
+        # 3. كود كوتلن الجديد - تم حل مشكلة التداخل بفصل التكرار في دالة برمجية مستقلة
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -84,12 +84,9 @@ jobs:
             private var scrollerView: ScrollView? = null
             private val mainHandler = Handler(Looper.getMainLooper())
             
-            // استخدام تعريف الـ Lambda المستقر لتفادي مشاكل الـ Anonymous Objects تماماً
-            private val scrollTicker: Runnable = object : Runnable {
-                override fun run() {
-                    scrollerView?.smoothScrollBy(0, 3)
-                    mainHandler.postDelayed(this, 40)
-                }
+            // تعريف الـ Runnable باستخدام دالة داخلية وتجنب استخدام كلمة `object` تماماً لحل خطأ المترجم الجذري
+            private val scrollRunnable = Runnable { 
+                startAutoScroll() 
             }
 
             override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,15 +110,20 @@ jobs:
                 setContentView(scrollView)
             }
 
+            // دالة مستقلة لإدارة التمرير وإعادة الجدولة دون أي تداخل في المراجع البرمجية
+            private fun startAutoScroll() {
+                scrollerView?.smoothScrollBy(0, 3)
+                mainHandler.postDelayed(scrollRunnable, 40)
+            }
+
             override fun onResume() {
                 super.onResume()
-                // استدعاء آمن ومباشر
-                mainHandler.postDelayed(scrollTicker, 1000)
+                mainHandler.postDelayed(scrollRunnable, 1000)
             }
 
             override fun onPause() {
                 super.onPause()
-                mainHandler.removeCallbacks(scrollTicker)
+                mainHandler.removeCallbacks(scrollRunnable)
             }
         }
         EOF
