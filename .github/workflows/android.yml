@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تطبيق بروتوكول جيت هاب: حقن كود نقي ومستقل لمهمة التمرير والنص الثابت فقط
+    # تطبيق بروتوكول المراجعة: حقن كود نقي يتفادى خطأ الثوابت عبر الدالة الرسمية
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -36,7 +36,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. مانيفست افتراضي نقي متوافق مع نظام أندرويد الصافي
+        # 1. مانيفست افتراضي نقي وثابت
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -64,7 +64,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود واجهة برمجية صريح يتجنب الاختصارات لتفادي تعارض الثوابت والمراجع
+        # 3. كود واجهة نقي تماماً يستخدم setLayoutParams لحسم مشكلة الـ Val
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -81,7 +81,7 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 
-                // أولاً: بناء الحاوية الرئيسية الخلفية
+                // 1. بناء الحاوية الرئيسية الخلفية واستهداف الدالة الرسمية للأبعاد
                 val mainLayout = LinearLayout(this)
                 mainLayout.orientation = LinearLayout.VERTICAL
                 mainLayout.setBackgroundColor(Color.BLACK)
@@ -90,19 +90,19 @@ jobs:
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.MATCH_PARENT
                 )
-                mainLayout.layoutParams = mainParams
+                mainLayout.setLayoutParams(mainParams)
 
-                // ثانياً: بناء حاوية التمرير لضمان مرونة الشاشة
+                // 2. بناء حاوية التمرير واستهداف الدالة الرسمية للأبعاد
                 val scrollView = ScrollView(this)
                 val scrollParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.MATCH_PARENT
                 )
-                scrollView.layoutParams = scrollParams
+                scrollView.setLayoutParams(scrollParams)
 
-                // ثالثاً: بناء وتجهيز عنصر النص بشكل صريح لمنع خطأ تعيين المتغيرات الثابتة
+                // 3. بناء وتجهيز عنصر النص بشكل مستقل وآمن
                 val textView = TextView(this)
-                textView.text = "مرحباً بك في VoxPrompter!\n\nتم إرساء حجر الأساس الثاني بنجاح.\n\nالآن تم حقن النص داخل حاوية مرنة وثيم مستقل نقي وفقاً لقواعد جيت هاب المعتمدة."
+                textView.text = "مرحباً بك في VoxPrompter!\n\nتم إرساء حجر الأساس الثاني بنجاح.\n\nالآن تم حقن النص وتمرير الأبعاد بالطريقة الرسمية الصافية لمنع أخطاء السيرفر."
                 textView.textSize = 26f
                 textView.setTextColor(Color.WHITE)
                 textView.gravity = Gravity.CENTER_HORIZONTAL
@@ -114,9 +114,9 @@ jobs:
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
                 textParams.setMargins(40, 80, 40, 80)
-                textView.layoutParams = textParams
+                textView.setLayoutParams(textParams)
 
-                // رابعاً: تركيب العناصر وتثبيتها بالترتيب الصحيح
+                // 4. تركيب العناصر وتثبيتها بالترتيب الصحيح
                 scrollView.addView(textView)
                 mainLayout.addView(scrollView)
                 
