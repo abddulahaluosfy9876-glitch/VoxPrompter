@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # حقن الحجر السابع: إضافة واجهة تحكم بسيطة وزر مشاركة المقطع الصوتي الصافي
+    # حقن الحجر الثامن: تهيئة إذن النظام وإضافة زر تفعيل الاختصار العائم يدوياً
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -37,13 +37,14 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. مانيفست نقي وثابت مع صلاحية المايكروفون الأساسية
+        # 1. مانيفست نقي مع إضافة صلاحيات المايكروفون وصلاحية الظهور فوق التطبيقات الافتراضية
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="com.example.voxprompter">
             
             <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
             
             <application
                 android:allowBackup="true"
@@ -71,7 +72,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. إنشاء مجلد وملف مسارات حماية مشاركة الملفات الصريحة
+        # 2. ملف مسارات الحماية ومشاركة الملفات الصوتية
         mkdir -p app/src/main/res/xml
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
@@ -88,7 +89,7 @@ jobs:
         </resources>
         EOF
 
-        # 4. كود كوتلن: دمج واجهة المشاركة الفورية للملف الصوتي عبر نظام الأندرويد الرسمي
+        # 4. كود كوتلن: تجميع الأزرار داخل حاوية تحكم طولية لضمان ترتيب الأزرار بوضوح ودقة عالية
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -101,9 +102,11 @@ jobs:
         import android.os.Bundle
         import android.os.Handler
         import android.os.Looper
+        import android.provider.Settings
         import android.view.Gravity
         import android.widget.Button
         import android.widget.FrameLayout
+        import android.widget.LinearLayout
         import android.widget.ScrollView
         import android.widget.TextView
         import androidx.core.content.FileProvider
@@ -122,7 +125,6 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
 
-                // إنشاء حاوية رئيسية مطلقة لتركيب الزر العائم فوق النص المتحرك
                 val mainLayout = FrameLayout(this)
                 mainLayout.setBackgroundColor(Color.BLACK)
 
@@ -130,40 +132,74 @@ jobs:
                 scrollerView = mainScrollView
                 
                 val prompterTextView = TextView(this)
-                prompterTextView.text = "ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك.\n\nالآن وأنت تقرأ هذا النص المنسق والمتحرك تلقائياً، يقوم محرك VoxPrompter الصوتي بالاستماع إليك وتسجيل نبرات صوتك بجودة ونقاء عاليين.\n\nبمجرد الانتهاء، يمكنك الضغط على الزر الأحمر في الأسفل لإيقاف التسجيل التلقائي ومشاركة ملفك الصوتي فوراً وبكل سهولة مع أصدقائك أو تطبيقاتك المفضلة."
+                prompterTextView.text = "ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك.\n\nالآن وأنت تقرأ هذا النص المنسق والمتحرك تلقائياً، يقوم محرك VoxPrompter الصوتي بالاستماع إليك وتسجيل نبرات صوتك بجودة ونقاء عاليين.\n\nفي الأسفل، قمنا بإضافة ميزة الاختصار الذكي؛ لتفعيل وضع الشاشة العائمة فوق التطبيقات الأخرى يدوياً وتسهيل القراءة أثناء تصفح هاتفك وحفظ تسجيلاتك بكل حرية."
                 
                 prompterTextView.setTextSize(28f)
                 prompterTextView.setTextColor(Color.WHITE)
                 prompterTextView.setGravity(Gravity.CENTER_HORIZONTAL)
                 prompterTextView.setTypeface(Typeface.DEFAULT_BOLD)
                 prompterTextView.setLineSpacing(0f, 1.5f)
-                prompterTextView.setPadding(45, 100, 45, 900)
+                prompterTextView.setPadding(45, 100, 45, 1000)
 
                 mainScrollView.addView(prompterTextView)
                 mainLayout.addView(mainScrollView)
 
-                // إضافة زر تحكم ومشاركة سفلي وعائم بشكل مريح لليدين
+                // إنشاء حاوية طولية سفلية لاحتواء زر التحكم وزر الاختصار العائم معاً بتنسيق أنيق
+                val buttonContainer = LinearLayout(this)
+                buttonContainer.orientation = LinearLayout.VERTICAL
+                
+                val containerParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.BOTTOM
+                )
+                buttonContainer.layoutParams = containerParams
+
+                // الزر الأول: زر إيقاف ومشاركة الصوت (الأحمر)
                 val actionButton = Button(this)
                 actionButton.text = "إيقاف ومشاركة الصوت 📤"
                 actionButton.setBackgroundColor(Color.parseColor("#E53935"))
                 actionButton.setTextColor(Color.WHITE)
                 actionButton.setTypeface(Typeface.DEFAULT_BOLD)
                 actionButton.setTextSize(18f)
-
-                val btnParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                
+                val btnParams1 = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
                 )
-                btnParams.setMargins(50, 0, 50, 60)
-                actionButton.layoutParams = btnParams
+                btnParams1.setMargins(50, 10, 50, 10)
+                actionButton.layoutParams = btnParams1
+                actionButton.setOnClickListener { stopRecordingAndShare() }
+                buttonContainer.addView(actionButton)
+
+                // الزر الثاني المضاف: زر تفعيل الملقن العائم فوق التطبيقات (الأزرق)
+                val overlayButton = Button(this)
+                overlayButton.text = "تفعيل الملقن العائم 📱"
+                overlayButton.setBackgroundColor(Color.parseColor("#1E88E5"))
+                overlayButton.setTextColor(Color.WHITE)
+                overlayButton.setTypeface(Typeface.DEFAULT_BOLD)
+                overlayButton.setTextSize(18f)
                 
-                // تفعيل منطق المشاركة عند الضغط على الزر
-                actionButton.setOnClickListener {
-                    stopRecordingAndShare()
+                val btnParams2 = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                btnParams2.setMargins(50, 10, 50, 40)
+                overlayButton.layoutParams = btnParams2
+                
+                overlayButton.setOnClickListener {
+                    // فحص والطلب الذكي لصلاحية الظهور فوق التطبيقات الأخرى يدوياً
+                    if (!Settings.canDrawOverlays(this)) {
+                        val intent = Intent(
+                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:$packageName")
+                        )
+                        startActivity(intent)
+                    }
                 }
-                
-                mainLayout.addView(actionButton)
+                buttonContainer.addView(overlayButton)
+
+                mainLayout.addView(buttonContainer)
                 setContentView(mainLayout)
 
                 audioFile = File(externalCacheDir ?: cacheDir, "VoxPrompter_Record.amr")
@@ -177,10 +213,7 @@ jobs:
             }
 
             private fun stopRecordingAndShare() {
-                // 1. إيقاف المحرك الحركي
                 scrollRunnable?.let { mainHandler.removeCallbacks(it) }
-                
-                // 2. إيقاف محرك التسجيل
                 if (isRecording) {
                     try {
                         audioRecorder?.stop()
@@ -192,7 +225,6 @@ jobs:
                     isRecording = false
                 }
 
-                // 3. إطلاق ميزة التمرير الذكي والمشاركة عبر نظام أندرويد
                 audioFile?.let { file ->
                     if (file.exists()) {
                         try {
