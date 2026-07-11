@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تطبيق بروتوكول جيت هاب: بناء المحرك بشكل محلي مغلق (Local Scope) لمنع تعارض المتغيرات الثابتة
+    # تطبيق بروتوكول التسمية الفريدة لضمان عزل المتغيرات المحلية تماماً عن الـ Activity
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -64,7 +64,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن نقي ومغلق محلياً 100% يضمن نجاح التجميع الحتمي
+        # 3. كود كوتلن مع حماية كاملة للمتغيرات المحلية عبر التسمية الفريدة العازلة للـ Val
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -85,52 +85,53 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 
-                val matchParentParams = ViewGroup.LayoutParams(
+                // عزل معاملات كائن الأبعاد تماماً
+                val voxScreenParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
 
-                // 1. الحاوية الرئيسية الخلفية
-                val mainLayout = LinearLayout(this).apply {
+                // 1. الحاوية الرئيسية بأسماء مخصصة فريدة
+                val voxMainLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setBackgroundColor(Color.BLACK)
                 }
 
-                // 2. حاوية التمرير كمتغير محلي آمن ومحمي تماماً
-                val scrollView = ScrollView(this)
+                // 2. حاوية التمرير محمية من أي تشابه مع دوال المترجم الأساسية
+                val voxScrollView = ScrollView(this)
 
-                // 3. عنصر النص البرامبتر الممتد
-                val textView = TextView(this)
-                textView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
-                textView.textSize = 28f
-                textView.setTextColor(Color.WHITE)
-                textView.gravity = Gravity.CENTER_HORIZONTAL
-                textView.typeface = Typeface.DEFAULT_BOLD
-                textView.lineSpacingMultiplier = 1.4f
+                // 3. عنصر النص البرامبتر الممتد المخصص
+                val voxTextView = TextView(this)
+                voxTextView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
+                voxTextView.textSize = 28f
+                voxTextView.setTextColor(Color.WHITE)
+                voxTextView.gravity = Gravity.CENTER_HORIZONTAL
+                voxTextView.typeface = Typeface.DEFAULT_BOLD
+                voxTextView.lineSpacingMultiplier = 1.4f
 
-                val textParams = LinearLayout.LayoutParams(
+                val voxTextParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
-                textParams.setMargins(40, 100, 40, 600) // هامش سفلي للحركة
+                voxTextParams.setMargins(40, 100, 40, 600)
 
-                // 4. تركيب شجرة العناصر برمجياً عبر معاملات الدالة مباشرة
-                scrollView.addView(textView, textParams)
-                mainLayout.addView(scrollView, matchParentParams)
+                // 4. دمج وتشييد العناصر برمجياً بطريقة آمنة
+                voxScrollView.addView(voxTextView, voxTextParams)
+                voxMainLayout.addView(voxScrollView, voxScreenParams)
                 
-                setContentView(mainLayout, matchParentParams)
+                setContentView(voxMainLayout, voxScreenParams)
 
-                // 5. بناء محرك الحركة التلقائية بشكل محلي مغلق تماماً لمنع تعارض الثوابت
-                val scrollHandler = Handler(Looper.getMainLooper())
-                val scrollRunnable = object : Runnable {
+                // 5. محرك تمرير تلقائي برمز مغلق فريد منعاً لخلط الثوابت في المترجم
+                val voxHandler = Handler(Looper.getMainLooper())
+                val voxRunnable = object : Runnable {
                     override fun run() {
-                        scrollView.smoothScrollBy(0, 3) // تمرير بـ 3 بكسل
-                        scrollHandler.postDelayed(this, 40) // تكرار كل 40 مللي ثانية
+                        voxScrollView.smoothScrollBy(0, 3)
+                        voxHandler.postDelayed(this, 40)
                     }
                 }
                 
-                // تشغيل المحرك بعد ثانية واحدة من استقرار الواجهة
-                scrollHandler.postDelayed(scrollRunnable, 1000)
+                // الإطلاق الآمن بعد ثانية كاملة
+                voxHandler.postDelayed(voxRunnable, 1000)
             }
         }
         EOF
