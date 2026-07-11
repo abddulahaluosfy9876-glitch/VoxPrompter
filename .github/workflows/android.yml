@@ -28,15 +28,36 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # عملية التطهير الشاملة لمنع خطأ الـ Overrides Final Method العالق في السيرفر
-    - name: Purge Old Source And Inject Fresh Code
+    # نسف مسار الموارد والكود بالكامل وإعادة تشكيله لمنع أي تداخل ملفات مخفية
+    - name: Complete Source Clean And Injection
       run: |
-        rm -rf app/src/main/java
+        rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
-        
-        rm -rf app/src/main/res/values
         mkdir -p app/src/main/res/values
-        
+
+        # 1. إنشاء المانيفست النظيف والصارم
+        cat << 'EOF' > app/src/main/AndroidManifest.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            package="com.example.voxprompter">
+            <application
+                android:allowBackup="true"
+                android:label="VoxPrompter"
+                android:supportsRtl="true"
+                android:theme="@style/AppTheme">
+                <activity
+                    android:name="com.example.voxprompter.MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+        # 2. إنشاء ملفات الموارد الأساسية
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
@@ -50,6 +71,7 @@ jobs:
         </resources>
         EOF
 
+        # 3. حقن كود الواجهة الاحترافية المظلمة الصافي والمستقر
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -117,7 +139,7 @@ jobs:
                     text = "مرحباً بك في VoxPrompter!\n\nهذا النص مخصص للتمرير التلقائي. يمكنك الآن اختبار ميزة التحكم في حجم الخط وسرعة التمرير عبر لوحة التحكم السفلية.\n\nالخط مصمم ليكون واضحاً ومريحاً للعين أثناء الإلقاء أمام الكاميرا. يمكنك الضغط على زر التشغيل لبدء التمرير التلقائي، واستخدام أزرار (+) و (-) لضبط الأبعاد بما يناسبك تماماً أثناء التحدث الفعلي."
                     textSize = fontSize
                     setTextColor(Color.parseColor("#E0E0E0"))
-                    gravity = Gravity.CENTER
+                    gravity = Gravity.CENTER_HORIZONTAL
                     typeface = Typeface.DEFAULT_BOLD
                     lineSpacingMultiplier = 1.3f
                 }
