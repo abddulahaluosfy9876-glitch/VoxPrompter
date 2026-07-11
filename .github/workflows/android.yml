@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # حقن الحجر العاشر: تحويل النافذة العائمة الثابتة إلى شاشة تفاعلية مرنة قابلة للسحب والتحريك الكامل
+    # حقن الحجر الحادي عشر: دمج محرك التمرير التلقائي الذكي داخل نافذة الملقن العائم المصغر
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -37,7 +37,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. المانيفست الرسمي للتطبيق
+        # 1. المانيفست الرسمي للتطبيق مع كامل الصلاحيات والخدمات
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -77,7 +77,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. ملف مسارات الحماية ومشاركة الملفات
+        # 2. ملف مسارات الحماية ومشاركة الملفات الصافية
         mkdir -p app/src/main/res/xml
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
@@ -87,14 +87,14 @@ jobs:
         </paths>
         EOF
 
-        # 3. ملف الموارد الأساسي
+        # 3. ملف الموارد المشترك
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
         </resources>
         EOF
 
-        # 4. كود كوتلن (1): إضافة منطق حركة السحب (Draggable) الرياضي المتناسق داخل الخدمة العائمة
+        # 4. كود كوتلن (1): حقن محرك الـ Auto-Scroll والـ ScrollView التلقائي داخل النافذة العائمة
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/FloatingService.kt
         package com.example.voxprompter
 
@@ -105,19 +105,27 @@ jobs:
         import android.graphics.PixelFormat
         import android.graphics.Typeface
         import android.os.Build
+        import android.os.Handler
         import android.os.IBinder
+        import android.os.Looper
         import android.view.Gravity
         import android.view.MotionEvent
         import android.view.View
         import android.view.WindowManager
         import android.widget.Button
         import android.widget.LinearLayout
+        import android.widget.ScrollView
         import android.widget.TextView
 
         class FloatingService : Service() {
 
             private var windowManager: WindowManager? = null
             private var floatingLayout: LinearLayout? = null
+            
+            // تهيئة متغيرات التمرير التلقائي لضمان المزامنة وحركة النص الانسيابية
+            private var floatingScrollView: ScrollView? = null
+            private val scrollHandler = Handler(Looper.getMainLooper())
+            private var scrollRunnable: Runnable? = null
 
             override fun onBind(intent: Intent?): IBinder? = null
 
@@ -128,22 +136,37 @@ jobs:
                 floatingLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setBackgroundColor(Color.parseColor("#CC000000"))
-                    setPadding(30, 30, 30, 30)
+                    setPadding(25, 25, 25, 25)
                 }
 
+                // 1. إنشاء حاوية التمرير الطولية برمجياً وتحديد وزنها داخل التصميم العائم
+                val scrollView = ScrollView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        250 // تخصيص ارتفاع مريح لعرض النص داخل الشاشة المصغرة
+                    )
+                }
+                floatingScrollView = scrollView
+
+                // 2. نص الملقن الطويل والمتحرك داخل الشاشة العائمة
                 val floatingText = TextView(this).apply {
-                    text = "الملقن الذكي العائم يعمل الآن بنجاح..\nاسحب الشاشة من هنا لتحريكها لأي مكان!"
+                    text = "نص الملقن العائم يتحرك الآن تلقائياً أمامك..\n\nيمكنك الآن الخروج وتصفح أي تطبيق آخر أو فتح كاميرا الهاتف للتصوير، بينما يتحرك هذا النص بسلاسة تامة لتقرأ منه بحرية وبدون تشتت.\n\nاضغط على زر الإغلاق بالأسفل للعودة للتطبيق في أي وقت."
                     setTextColor(Color.WHITE)
                     textSize = 18f
                     typeface = Typeface.DEFAULT_BOLD
-                    gravity = Gravity.CENTER
+                    gravity = Gravity.CENTER_HORIZONTAL
+                    setLineSpacing(0f, 1.4f)
+                    setPadding(10, 10, 10, 400) // حواف سفلية لمنع انقطاع النص أثناء التحريك
                 }
-                floatingLayout?.addView(floatingText)
+                scrollView.addView(floatingText)
+                floatingLayout?.addView(scrollView)
 
+                // 3. زر إغلاق الخدمة العائمة والعودة للواجهة الرئيسية
                 val closeButton = Button(this).apply {
-                    text = "إغلاق ✖"
+                    text = "إغلاق الملقن ✖"
                     setBackgroundColor(Color.parseColor("#E53935"))
                     setTextColor(Color.WHITE)
+                    setTypeface(Typeface.DEFAULT_BOLD)
                     setOnClickListener { stopSelf() }
                 }
                 
@@ -151,7 +174,7 @@ jobs:
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    topMargin = 20
+                    topMargin = 15
                 }
                 closeButton.layoutParams = btnParams
                 floatingLayout?.addView(closeButton)
@@ -162,10 +185,9 @@ jobs:
                     WindowManager.LayoutParams.TYPE_PHONE
                 }
 
-                // تجهيز متغيرات العرض المبدئية للنافذة العائمة
                 val params = WindowManager.LayoutParams(
                     WindowManager.LayoutParams.MATCH_PARENT,
-                    450,
+                    480, // تعديل الارتفاع الكلي ليناسب التصميم والمحرك الجديد
                     layoutFlag,
                     WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
                     PixelFormat.TRANSLUCENT
@@ -175,7 +197,7 @@ jobs:
                     y = 200
                 }
 
-                // حقن مستمع اللمس الذكي لالتقاط حركات السحب برمجياً وتعديل الإحداثيات لحظياً
+                // ميزة سحب وتحريك النافذة يدوياً لحماية رؤية التطبيقات الأخرى
                 floatingLayout?.setOnTouchListener(object : View.OnTouchListener {
                     private var initialX = 0
                     private var initialY = 0
@@ -195,7 +217,6 @@ jobs:
                             MotionEvent.ACTION_MOVE -> {
                                 params.x = initialX + (event.rawX - initialTouchX).toInt()
                                 params.y = initialY + (event.rawY - initialTouchY).toInt()
-                                // تحديث موضع النافذة على الشاشة فوراً عند تحريك إصبع المستخدم
                                 windowManager?.updateViewLayout(floatingLayout, params)
                                 return true
                             }
@@ -205,10 +226,22 @@ jobs:
                 })
 
                 windowManager?.addView(floatingLayout, params)
+
+                // 4. تشغيل محرك الحركة التلقائية الآمن فور ظهور الشاشة العائمة
+                scrollRunnable = object : Runnable {
+                    override fun run() {
+                        floatingScrollView?.smoothScrollBy(0, 2)
+                        scrollRunnable?.let { scrollHandler.postDelayed(it, 50) }
+                    }
+                }
+                scrollHandler.postDelayed(scrollRunnable!!, 1500) // بدء التمرير بعد ثانية ونصف لراحة عين القارئ
             }
 
             override fun onDestroy() {
                 super.onDestroy()
+                // إيقاف ملقن الحركة وتنظيف الذاكرة بأمان تام لمنع أي تسريب خلفي للبيانات
+                scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
+                
                 floatingLayout?.let {
                     try {
                         windowManager?.removeView(it)
@@ -220,7 +253,7 @@ jobs:
         }
         EOF
 
-        # 5. كود كوتلن (2): النشاط الرئيسي المستقر والمجرب مسبقاً بنجاح
+        # 5. كود كوتلن (2): النشاط الرئيسي المستقر تماماً
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
