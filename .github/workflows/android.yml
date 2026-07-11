@@ -28,18 +28,14 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # خطوة الإبادة الهندسية: مسح الملف العالق Main.kt وإعادة بناء الهيكل النظيف
+    # خطوة التطهير والبناء النظيف
     - name: Deep Purge And Absolute Clean Injection
       run: |
-        # 1. إبادة أي ملفات ميتة باسم Main.kt في المشروع بالكامل لمنع التعارض
         find . -name "Main.kt" -type f -delete
-        
-        # 2. تصفير مجلد src بالكامل
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 3. بناء المانيفست النظيف
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -61,7 +57,6 @@ jobs:
         </manifest>
         EOF
 
-        # 4. بناء الموارد الصافية
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
@@ -75,7 +70,6 @@ jobs:
         </resources>
         EOF
 
-        # 5. زرع كود الواجهة الاحترافية المظلمة
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -265,9 +259,10 @@ jobs:
         chmod +x gradlew
         ./gradlew assembleDebug --no-daemon
 
+    # تعديل مسار الالتقاط بشكل ذكي وشامل لرفع الـ APK فوراً من أي مكان تم توليده فيه
     - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
         name: VoxPrompter-Debug-APK
-        path: app/build/outputs/apk/debug/app-debug.apk
+        path: "**/build/outputs/apk/debug/*.apk"
         
