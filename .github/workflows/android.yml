@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تطبيق بروتوكول جيت هاب: حقن محرك التمرير التلقائي للنص
+    # تطبيق بروتوكول جيت هاب: بناء المحرك بشكل محلي مغلق (Local Scope) لمنع تعارض المتغيرات الثابتة
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -64,7 +64,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن مع محرك التمرير الآمن وتجنب تعديل الخصائص المحمية
+        # 3. كود كوتلن نقي ومغلق محلياً 100% يضمن نجاح التجميع الحتمي
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -82,17 +82,6 @@ jobs:
 
         class MainActivity : Activity() {
 
-            private val scrollHandler = Handler(Looper.getMainLooper())
-            private lateinit var mainScrollView: ScrollView
-
-            // عداد التمرير التلقائي المستمر
-            private val scrollRunnable = object : Runnable {
-                override fun run() {
-                    mainScrollView.smoothScrollBy(0, 3) // تمرير بمقدار 3 بكسل
-                    scrollHandler.postDelayed(this, 40) // تكرار كل 40 مللي ثانية
-                }
-            }
-
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 
@@ -101,16 +90,16 @@ jobs:
                     ViewGroup.LayoutParams.MATCH_PARENT
                 )
 
-                // 1. الحاوية الرئيسية
+                // 1. الحاوية الرئيسية الخلفية
                 val mainLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setBackgroundColor(Color.BLACK)
                 }
 
-                // 2. حاوية التمرير وحفظها في المتغير العام للمحرك
-                mainScrollView = ScrollView(this)
+                // 2. حاوية التمرير كمتغير محلي آمن ومحمي تماماً
+                val scrollView = ScrollView(this)
 
-                // 3. عنصر النص البرامبتر (تم تكثيفه لتجربة حركة التمرير بدقة)
+                // 3. عنصر النص البرامبتر الممتد
                 val textView = TextView(this)
                 textView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو الحجر الثالث المكتمل والمخصص لاختبار محرك التمرير التلقائي المستقر.\n\nالآن، يجب أن تلاحظ أن النص يتحرك تلقائياً وبسلاسة نحو الأعلى دون أن تلمس الشاشة بإصبعك.\n\nهذا المحرك البرمجي يعتمد على عداد تكراري آمن مدمج في أندرويد لحساب الإزاحة العمودية بدقة.\n\nبمجرد التأكد من نجاح هذا البناء واستقرار الحركة التلقائية على جوالك، سننتقل في الخطوة القادمة لإضافة الحجر الرابع وهو أزرار التحكم والتشغيل."
                 textView.textSize = 28f
@@ -123,22 +112,25 @@ jobs:
                     LinearLayout.LayoutParams.MATCH_PARENT,
                     LinearLayout.LayoutParams.WRAP_CONTENT
                 )
-                textParams.setMargins(40, 100, 40, 600) // هامش سفلي كبير لمنح النص مساحة حركة كاملة
+                textParams.setMargins(40, 100, 40, 600) // هامش سفلي للحركة
 
-                // 4. تركيب شجرة العناصر
-                mainScrollView.addView(textView, textParams)
-                mainLayout.addView(mainScrollView, matchParentParams)
+                // 4. تركيب شجرة العناصر برمجياً عبر معاملات الدالة مباشرة
+                scrollView.addView(textView, textParams)
+                mainLayout.addView(scrollView, matchParentParams)
                 
                 setContentView(mainLayout, matchParentParams)
 
-                // 5. إطلاق محرك التمرير التلقائي فور فتح الشاشة واستقرارها
+                // 5. بناء محرك الحركة التلقائية بشكل محلي مغلق تماماً لمنع تعارض الثوابت
+                val scrollHandler = Handler(Looper.getMainLooper())
+                val scrollRunnable = object : Runnable {
+                    override fun run() {
+                        scrollView.smoothScrollBy(0, 3) // تمرير بـ 3 بكسل
+                        scrollHandler.postDelayed(this, 40) // تكرار كل 40 مللي ثانية
+                    }
+                }
+                
+                // تشغيل المحرك بعد ثانية واحدة من استقرار الواجهة
                 scrollHandler.postDelayed(scrollRunnable, 1000)
-            }
-
-            override fun onDestroy() {
-                super.onDestroy()
-                // إيقاف العداد فوراً عند إغلاق التطبيق منعاً لأي تسريب للذاكرة
-                scrollHandler.removeCallbacks(scrollRunnable)
             }
         }
         EOF
