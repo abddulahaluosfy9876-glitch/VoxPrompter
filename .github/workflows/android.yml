@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # حقن الحجر الثامن: تهيئة إذن النظام وإضافة زر تفعيل الاختصار العائم يدوياً
+    # حقن الحجر التاسع: دمج خدمة الملقن العائم المصغر وفصل المنطق البرمجي بأمان كامل
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -37,7 +37,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. مانيفست نقي مع إضافة صلاحيات المايكروفون وصلاحية الظهور فوق التطبيقات الافتراضية
+        # 1. مانيفست متكامل يحتوي على الصلاحيات ويسجل الخدمة الخلفية الجديدة رسمياً
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -58,6 +58,11 @@ jobs:
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
                 </activity>
+                
+                <service
+                    android:name="com.example.voxprompter.FloatingService"
+                    android:enabled="true"
+                    android:exported="false" />
                 
                 <provider
                     android:name="androidx.core.content.FileProvider"
@@ -89,7 +94,106 @@ jobs:
         </resources>
         EOF
 
-        # 4. كود كوتلن: تجميع الأزرار داخل حاوية تحكم طولية لضمان ترتيب الأزرار بوضوح ودقة عالية
+        # 4. كود كوتلن (1): إنشاء خدمة الملقن العائم المستقلة تماماً لإدارة شاشة العرض المصغرة
+        cat << 'EOF' > app/src/main/java/com/example/voxprompter/FloatingService.kt
+        package com.example.voxprompter
+
+        import android.app.Service
+        import android.content.Context
+        import android.content.Intent
+        import android.graphics.Color
+        import android.graphics.PixelFormat
+        import android.graphics.Typeface
+        import android.os.Build
+        import android.os.IBinder
+        import android.view.Gravity
+        import android.view.WindowManager
+        import android.widget.Button
+        import android.widget.LinearLayout
+        import android.widget.TextView
+
+        class FloatingService : Service() {
+
+            private var windowManager: WindowManager? = null
+            private var floatingLayout: LinearLayout? = null
+
+            override fun onBind(intent: Intent?): IBinder? = null
+
+            override fun onCreate() {
+                super.onCreate()
+                windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+                // إنشاء الحاوية العائمة بخلفية سوداء شبه شفافة لراحة العين فوق التطبيقات
+                floatingLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundColor(Color.parseColor("#CC000000"))
+                    padding = 30
+                }
+
+                // نص الملقن المصغر داخل النافذة العائمة
+                val floatingText = TextView(this).apply {
+                    text = "الملقن الذكي العائم يعمل الآن بنجاح..\nيمكنك القراءة والتسجيل في نفس الوقت!"
+                    setTextColor(Color.WHITE)
+                    textSize = 18f
+                    typeface = Typeface.DEFAULT_BOLD
+                    gravity = Gravity.CENTER
+                }
+                floatingLayout?.addView(floatingText)
+
+                // زر إغلاق النافذة العائمة والعودة
+                val closeButton = Button(this).apply {
+                    text = "إغلاق ✖"
+                    setBackgroundColor(Color.parseColor("#E53935"))
+                    setTextColor(Color.WHITE)
+                    setOnClickListener { stopSelf() }
+                }
+                
+                val btnParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    topMargin = 20
+                }
+                closeButton.layoutParams = btnParams
+                floatingLayout?.addView(closeButton)
+
+                // ضبط إعدادات العرض الشفافة والمتوافقة مع كافة إصدارات الأندرويد الحديثة والقديمة
+                val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+                } else {
+                    WindowManager.LayoutParams.TYPE_PHONE
+                }
+
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT,
+                    450, // تحديد ارتفاع مناسب وذكي للنافذة المصغرة
+                    layoutFlag,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                    PixelFormat.TRANSLUCENT
+                ).apply {
+                    gravity = Gravity.TOP
+                    x = 0
+                    y = 100
+                }
+
+                windowManager?.addView(floatingLayout, params)
+            }
+
+            override fun onDestroy() {
+                super.onDestroy()
+                // تنظيف الذاكرة وإزالة النافذة العائمة فوراً عند إيقاف الخدمة لمنع تسريب الذاكرة
+                floatingLayout?.let {
+                    try {
+                        windowManager?.removeView(it)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+        EOF
+
+        # 5. كود كوتلن (2): تحديث النشاط الرئيسي لتشغيل الخدمة العائمة فوراً عند طلبها
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -144,7 +248,6 @@ jobs:
                 mainScrollView.addView(prompterTextView)
                 mainLayout.addView(mainScrollView)
 
-                // إنشاء حاوية طولية سفلية لاحتواء زر التحكم وزر الاختصار العائم معاً بتنسيق أنيق
                 val buttonContainer = LinearLayout(this)
                 buttonContainer.orientation = LinearLayout.VERTICAL
                 
@@ -155,7 +258,7 @@ jobs:
                 )
                 buttonContainer.layoutParams = containerParams
 
-                // الزر الأول: زر إيقاف ومشاركة الصوت (الأحمر)
+                // الزر الأحمر للمشاركة
                 val actionButton = Button(this)
                 actionButton.text = "إيقاف ومشاركة الصوت 📤"
                 actionButton.setBackgroundColor(Color.parseColor("#E53935"))
@@ -172,7 +275,7 @@ jobs:
                 actionButton.setOnClickListener { stopRecordingAndShare() }
                 buttonContainer.addView(actionButton)
 
-                // الزر الثاني المضاف: زر تفعيل الملقن العائم فوق التطبيقات (الأزرق)
+                // الزر الأزرق لتشغيل الملقن العائم
                 val overlayButton = Button(this)
                 overlayButton.text = "تفعيل الملقن العائم 📱"
                 overlayButton.setBackgroundColor(Color.parseColor("#1E88E5"))
@@ -188,8 +291,10 @@ jobs:
                 overlayButton.layoutParams = btnParams2
                 
                 overlayButton.setOnClickListener {
-                    // فحص والطلب الذكي لصلاحية الظهور فوق التطبيقات الأخرى يدوياً
-                    if (!Settings.canDrawOverlays(this)) {
+                    if (Settings.canDrawOverlays(this)) {
+                        // تشغيل خدمة الملقن العائم المصغر بأمان فور توفر الصلاحية
+                        startService(Intent(this, FloatingService::class.java))
+                    } else {
                         val intent = Intent(
                             Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                             Uri.parse("package:$packageName")
