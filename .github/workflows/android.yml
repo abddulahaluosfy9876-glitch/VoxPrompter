@@ -28,14 +28,18 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # نسف مسار الموارد والكود بالكامل وإعادة تشكيله لمنع أي تداخل ملفات مخفية
-    - name: Complete Source Clean And Injection
+    # خطوة الإبادة الهندسية: مسح الملف العالق Main.kt وإعادة بناء الهيكل النظيف
+    - name: Deep Purge And Absolute Clean Injection
       run: |
+        # 1. إبادة أي ملفات ميتة باسم Main.kt في المشروع بالكامل لمنع التعارض
+        find . -name "Main.kt" -type f -delete
+        
+        # 2. تصفير مجلد src بالكامل
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. إنشاء المانيفست النظيف والصارم
+        # 3. بناء المانيفست النظيف
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -57,7 +61,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. إنشاء ملفات الموارد الأساسية
+        # 4. بناء الموارد الصافية
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
@@ -71,7 +75,7 @@ jobs:
         </resources>
         EOF
 
-        # 3. حقن كود الواجهة الاحترافية المظلمة الصافي والمستقر
+        # 5. زرع كود الواجهة الاحترافية المظلمة
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -139,7 +143,7 @@ jobs:
                     text = "مرحباً بك في VoxPrompter!\n\nهذا النص مخصص للتمرير التلقائي. يمكنك الآن اختبار ميزة التحكم في حجم الخط وسرعة التمرير عبر لوحة التحكم السفلية.\n\nالخط مصمم ليكون واضحاً ومريحاً للعين أثناء الإلقاء أمام الكاميرا. يمكنك الضغط على زر التشغيل لبدء التمرير التلقائي، واستخدام أزرار (+) و (-) لضبط الأبعاد بما يناسبك تماماً أثناء التحدث الفعلي."
                     textSize = fontSize
                     setTextColor(Color.parseColor("#E0E0E0"))
-                    gravity = Gravity.CENTER_HORIZONTAL
+                    gravity = Gravity.CENTER
                     typeface = Typeface.DEFAULT_BOLD
                     lineSpacingMultiplier = 1.3f
                 }
