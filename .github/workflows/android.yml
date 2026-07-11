@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # تطبيق مقترح المهندس: مهمة واحدة بسيطة جداً (إنشاء الحاوية الصافية) لضمان استقرار المترجم
+    # حقن الحجر الرابع: إضافة ميزة جودة القراءة وظهور النص بوضوح عالي
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -65,24 +65,44 @@ jobs:
         </resources>
         EOF
 
-        # 3. كود كوتلن فائق التبسيط: شاشة سوداء وحاوية تمرير فقط لا غير
+        # 3. كود كوتلن: حاوية التمرير وبداخلها النص المنسق والمجهز تماماً للقراءة المريحة
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.app.Activity
         import android.graphics.Color
+        import android.graphics.Typeface
         import android.os.Bundle
+        import android.view.Gravity
         import android.widget.ScrollView
+        import android.widget.TextView
 
         class MainActivity : Activity() {
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
 
-                // مهمة واحدة: إنشاء حاوية التمرير باللون الأسود وتعيينها واجهة للتطبيق
+                // 1. إنشاء حاوية التمرير الخلفية باللون الأسود
                 val mainScrollView = ScrollView(this)
                 mainScrollView.setBackgroundColor(Color.BLACK)
                 
+                // 2. إنشاء وتنسيق عنصر النص لضمان أعلى جودة ظهور وسهولة قراءة
+                val prompterTextView = TextView(this)
+                prompterTextView.text = "مرحباً بك في VoxPrompter!\n\nهذا هو النص الذكي المنسق بجودة عالية لتسهيل القراءة.\n\nتم ضبط حجم الخط ليكون كبيراً وواضحاً، وتم توسيع الفراغات بين الأسطر لراحة العين أثناء الإلقاء والتسجيل الصوتي.\n\nفي الخطوات القادمة، سنضيف ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك."
+                
+                prompterTextView.textSize = 28f // حجم خط كبير ومثالي للملقن
+                prompterTextView.setTextColor(Color.WHITE) // تباين عالي (أبيض على أسود)
+                prompterTextView.gravity = Gravity.CENTER_HORIZONTAL // محاذاة النص في المنتصف
+                prompterTextView.typeface = Typeface.DEFAULT_BOLD // خط عريض وواضح
+                prompterTextView.lineSpacingMultiplier = 1.5f // مسافة أسطر مريحة جداً تمنع تداخل الكلمات
+                
+                // إضافة حشو داخلي (Padding) لمنع التصاق النص بحواف الشاشة ولإعطاء مساحة فارغة في الأسفل
+                prompterTextView.setPadding(45, 100, 45, 600)
+
+                // 3. دمج النص داخل حاوية التمرير
+                mainScrollView.addView(prompterTextView)
+                
+                // 4. تعيين الواجهة بالكامل على الشاشة
                 setContentView(mainScrollView)
             }
         }
