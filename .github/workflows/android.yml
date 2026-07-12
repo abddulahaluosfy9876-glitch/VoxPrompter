@@ -20,24 +20,26 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Inject Step 1 - Floating Overlay Permission Only
+    - name: Inject Step 2 - Voice Recorder Feature Only
       run: |
         echo "android.useAndroidX=true" > gradle.properties
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
+        mkdir -p app/src/main/res/xml
 
-        # 1. المانيفست: يطلب إذن الظهور فوق التطبيقات فقط
+        # 1. ملف الـ AndroidManifest مع أذونات التسجيل وحماية الملفات
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="com.example.voxprompter">
             
-            <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+            <uses-permission android:name="android.permission.RECORD_AUDIO" />
+            <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
             
             <application
                 android:allowBackup="true"
-                android:label="VoxPrompter"
+                android:label="VoxPrompter Audio"
                 android:theme="@android:style/Theme.Black.NoTitleBar">
                 
                 <activity
@@ -48,106 +50,61 @@ jobs:
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
                 </activity>
-                
-                <service
-                    android:name="com.example.voxprompter.FloatingService"
-                    android:enabled="true"
-                    android:exported="false" />
+
+                <provider
+                    android:name="androidx.core.content.FileProvider"
+                    android:authorities="com.example.voxprompter.fileprovider"
+                    android:exported="false"
+                    android:grantUriPermissions="true">
+                    <meta-data
+                        android:name="android.support.FILE_PROVIDER_PATHS"
+                        android:resource="@xml/file_paths" />
+                </provider>
             </application>
         </manifest>
         EOF
 
-        # 2. ملف الموارد الأساسي
+        # 2. ملف مسارات مشاركة الملفات الصوتية بأمان
+        cat << 'EOF' > app/src/main/res/xml/file_paths.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <paths>
+            <external-cache-path name="external_cache" path="." />
+            <cache-path name="internal_cache" path="." />
+        </paths>
+        EOF
+
+        # 3. ملف النصوص العامة
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
         </resources>
         EOF
 
-        # 3. الخدمة العائمة: مسؤولة فقط عن إنشاء النافذة فوق التطبيقات الأخرى
-        cat << 'EOF' > app/src/main/java/com/example/voxprompter/FloatingService.kt
-        package com.example.voxprompter
-
-        import android.app.Service
-        import android.content.Context
-        import android.content.Intent
-        import android.graphics.Color
-        import android.graphics.PixelFormat
-        import android.os.Build
-        import android.os.IBinder
-        import android.view.Gravity
-        import android.view.WindowManager
-        import android.widget.Button
-        import android.widget.LinearLayout
-        import android.widget.TextView
-
-        class FloatingService : Service() {
-            private var windowManager: WindowManager? = null
-            private var floatingLayout: LinearLayout? = null
-
-            override fun onBind(intent: Intent?): IBinder? = null
-
-            override fun onCreate() {
-                super.onCreate()
-                windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-
-                floatingLayout = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setBackgroundColor(Color.parseColor("#CC000000"))
-                    setPadding(20, 20, 20, 20)
-                }
-
-                val textView = TextView(this).apply {
-                    text = "الملقن العائم يعمل الآن فوق التطبيقات والواتساب بنجاح! ✅"
-                    setTextColor(Color.WHITE)
-                    textSize = 16f
-                }
-                floatingLayout?.addView(textView)
-
-                val closeButton = Button(this).apply {
-                    text = "إغلاق ✖"
-                    setOnClickListener { stopSelf() }
-                }
-                floatingLayout?.addView(closeButton)
-
-                // إعدادات النافذة لتظهر فوق كل شيء (بما فيها الواتساب) طبقاً للأنظمة الحديثة
-                val params = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    WindowManager.LayoutParams.WRAP_CONTENT,
-                    if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                    PixelFormat.TRANSLUCENT
-                ).apply {
-                    gravity = Gravity.TOP or Gravity.START
-                    y = 150
-                }
-
-                windowManager?.addView(floatingLayout, params)
-            }
-
-            override fun onDestroy() {
-                floatingLayout?.let {
-                    try { windowManager?.removeView(it) } catch (e: Exception) {}
-                }
-                super.onDestroy()
-            }
-        }
-        EOF
-
-        # 4. الواجهة الرئيسية: زر واحد فقط لطلب الإذن وتشغيل الملقن العائم
+        # 4. الواجهة الرئيسية: التحكم الكلي بمحرك الميكروفون وحفظ الصوت
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.app.Activity
         import android.content.Intent
+        import android.content.pm.PackageManager
         import android.graphics.Color
-        import android.net.Uri
+        import android.media.MediaRecorder
+        import android.os.Build
         import android.os.Bundle
-        import android.provider.Settings
+        import android.view.Gravity
         import android.widget.Button
+        import android.widget.EditText
         import android.widget.LinearLayout
+        import android.widget.Toast
+        import androidx.core.content.FileProvider
+        import java.io.File
 
         class MainActivity : Activity() {
+
+            private var audioRecorder: MediaRecorder? = null
+            private var audioFile: File? = null
+            private var isRecording = false
+            private var actionButton: Button? = null
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
@@ -155,28 +112,101 @@ jobs:
                 val mainLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
                     setBackgroundColor(Color.BLACK)
-                    setPadding(50, 50, 50, 50)
+                    setPadding(30, 30, 30, 30)
                 }
 
-                val startButton = Button(this).apply {
-                    text = "تفعيل الملقن العائم فوق التطبيقات 📱"
-                    setBackgroundColor(Color.parseColor("#1565C0"))
+                val prompterInput = EditText(this).apply {
+                    hint = "اكتب النص المنسق والمتحرك هنا وقصتك الصوتية..."
+                    setHintTextColor(Color.GRAY)
                     setTextColor(Color.WHITE)
-                    setOnClickListener {
-                        if (Settings.canDrawOverlays(this@MainActivity)) {
-                            startService(Intent(this@MainActivity, FloatingService::class.java))
-                        } else {
-                            val intent = Intent(
-                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                                Uri.parse("package:$packageName")
-                            )
-                            startActivity(intent)
-                        }
-                    }
+                    textSize = 18f
+                    gravity = Gravity.TOP or Gravity.START
+                    setBackgroundColor(Color.parseColor("#121212"))
+                    setPadding(20, 20, 20, 20)
+                    layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 20 }
                 }
-                mainLayout.addView(startButton)
+                mainLayout.addView(prompterInput)
+
+                actionButton = Button(this).apply {
+                    text = "ابدأ تسجيل الصوت 🎙️"
+                    setBackgroundColor(Color.parseColor("#00796B"))
+                    setTextColor(Color.WHITE)
+                    textSize = 14f
+                    layoutParams = LinearLayout.LayoutParams(-1, 110)
+                    setOnClickListener { handleAudioAction() }
+                }
+                mainLayout.addView(actionButton)
 
                 setContentView(mainLayout)
+
+                audioFile = File(externalCacheDir ?: cacheDir, "VoxAudioRecord.amr")
+                checkAudioPermissions()
+            }
+
+            private fun checkAudioPermissions() {
+                if (Build.VERSION.SDK_INT >= 23) {
+                    if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 200)
+                    }
+                }
+            }
+
+            private fun handleAudioAction() {
+                if (!isRecording) {
+                    try {
+                        audioRecorder = MediaRecorder().apply {
+                            setAudioSource(MediaRecorder.AudioSource.MIC)
+                            setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)
+                            setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                            setOutputFile(audioFile?.absolutePath)
+                            prepare()
+                            start()
+                        }
+                        isRecording = true
+                        actionButton?.text = "إيقاف ومشاركة الصوت 📤"
+                        actionButton?.setBackgroundColor(Color.parseColor("#C62828"))
+                        Toast.makeText(this, "بدأ التسجيل الآن...", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "فشل في تشغيل الميكروفون", Toast.LENGTH_SHORT).show()
+                        e.printStackTrace()
+                    }
+                } else {
+                    stopAndShareAudio()
+                }
+            }
+
+            private fun stopAndShareAudio() {
+                try {
+                    audioRecorder?.stop()
+                    audioRecorder?.release()
+                } catch (e: Exception) {}
+                audioRecorder = null
+                isRecording = false
+
+                actionButton?.text = "ابدأ تسجيل الصوت 🎙️"
+                actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
+
+                if (audioFile != null && audioFile!!.exists()) {
+                    val fileUri = FileProvider.getUriForFile(this, "com.example.voxprompter.fileprovider", audioFile!!)
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "audio/amr"
+                        putExtra(Intent.EXTRA_STREAM, fileUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(shareIntent, "إرسال الصوت ومشاركته عبر:"))
+                } else {
+                    Toast.makeText(this, "الملف الصوتي غير موجود", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            override fun onDestroy() {
+                if (isRecording) {
+                    try {
+                        audioRecorder?.stop()
+                        audioRecorder?.release()
+                    } catch (e: Exception) {}
+                }
+                super.onDestroy()
             }
         }
         EOF
@@ -186,9 +216,9 @@ jobs:
         chmod +x gradlew
         ./gradlew clean assembleDebug --no-daemon
 
-    - name: Upload Step 1 Artifact
+    - name: Upload Step 2 Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: VoxPrompter-Step1-APK
+        name: VoxPrompter-Step2-Audio-APK
         path: "app/build/outputs/apk/debug/*.apk"
         
