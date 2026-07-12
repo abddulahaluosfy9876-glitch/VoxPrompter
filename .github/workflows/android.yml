@@ -20,14 +20,13 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Inject Step 4 - Fix Build and Voice-Activated Scroll
+    - name: Inject Step 5 - Add Reset Scroll Button Only
       run: |
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/res/xml
 
-        # إصلاح جذر مشكلة البناء المذكورة في خطأ نظام أندرويد
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
@@ -42,7 +41,7 @@ jobs:
             
             <application
                 android:allowBackup="true"
-                android:label="VoxPrompter Smart Scroll"
+                android:label="VoxPrompter Reset Scroll"
                 android:theme="@android:style/Theme.Black.NoTitleBar">
                 
                 <activity
@@ -67,7 +66,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. ملف مسارات مشاركة الملفات الصوتية
+        # 2. ملف مسارات مشاركة الملفات
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
         <paths>
@@ -83,7 +82,7 @@ jobs:
         </resources>
         EOF
 
-        # 4. الكود الرئيسي بالتحديث الذكي لحركة النص عند رصد الصوت
+        # 4. الكود الرئيسي بإضافة صف أزرار منسق وزر إعادة النص للبداية
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -147,15 +146,39 @@ jobs:
                 textScrollView?.addView(prompterInput)
                 mainLayout.addView(textScrollView)
 
+                // إنشاء حاوي أفقي للأزرار لتوفير المساحة وتنسيق الحجم
+                val buttonsLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    weightSum = 4f
+                    layoutParams = LinearLayout.LayoutParams(-1, 110)
+                }
+
+                // زر إعادة النص إلى البداية (يأخذ مساحة صغيرة ربع الشاشة)
+                val resetBtn = Button(this).apply {
+                    text = "البداية ↩️"
+                    setBackgroundColor(Color.parseColor("#37474F"))
+                    setTextColor(Color.WHITE)
+                    textSize = 12f
+                    layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
+                    setOnClickListener {
+                        textScrollView?.smoothScrollTo(0, 0)
+                        Toast.makeText(this@MainActivity, "تم إعادة النص للبداية", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                buttonsLayout.addView(resetBtn)
+
+                // زر التحكم في التسجيل والتحريك الذكي (يأخذ ثلاثة أرباع المساحة المتبقية)
                 actionButton = Button(this).apply {
                     text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
                     setBackgroundColor(Color.parseColor("#00796B"))
                     setTextColor(Color.WHITE)
-                    textSize = 14f
-                    layoutParams = LinearLayout.LayoutParams(-1, 110)
+                    textSize = 13f
+                    layoutParams = LinearLayout.LayoutParams(0, -1, 3f)
                     setOnClickListener { handleAudioAndSmartScroll() }
                 }
-                mainLayout.addView(actionButton)
+                buttonsLayout.addView(actionButton)
+                
+                mainLayout.addView(buttonsLayout)
 
                 setContentView(mainLayout)
 
@@ -256,9 +279,9 @@ jobs:
         chmod +x gradlew
         ./gradlew clean assembleDebug --no-daemon
 
-    - name: Upload Step 4 Artifact
+    - name: Upload Step 5 Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: VoxPrompter-Step4-SmartScroll-APK
+        name: VoxPrompter-Step5-ResetScroll-APK
         path: "app/build/outputs/apk/debug/*.apk"
         
