@@ -20,15 +20,19 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    # حقن وهندسة الأكواد المستقرة الخالية من الأخطاء تماماً
-    - name: Inject Core Source Files
+    # تهيئة بيئة وملفات الأندرويد الأساسية بشكل مستقر ومتوافق
+    - name: Inject Core Source and Configuration Files
       run: |
+        # 1. تفعيل دعم AndroidX بشكل صارم لمنع انهيار بناء الميتا-داتا
+        echo "android.useAndroidX=true" > gradle.properties
+
+        # تنظيف وحقن المجلدات
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/res/xml
 
-        # 1. المانيفست الرسمي
+        # 2. المانيفست الرسمي للتطبيق
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -68,7 +72,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. ملف مسارات الحماية
+        # 3. ملف مسارات ملفات الحماية والمشاركة
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
         <paths>
@@ -77,14 +81,14 @@ jobs:
         </paths>
         EOF
 
-        # 3. ملف الموارد المشترك
+        # 4. ملف الموارد والأسماء المشتركة
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
         </resources>
         EOF
 
-        # 4. محرك المزامنة العائم (FloatingService) المتكامل والمصلح هندسياً
+        # 5. محرك الملقن العائم الذكي (FloatingService)
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/FloatingService.kt
         package com.example.voxprompter
 
@@ -208,7 +212,7 @@ jobs:
         }
         EOF
 
-        # 5. النشاط الرئيسي الكامل مع أزرار التحكم اللصق والاستيراد (.txt)
+        # 6. النشاط الرئيسي الواثق والمصلح تماماً من أخطاء الـ Reassigned المتغيرة
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -453,7 +457,7 @@ jobs:
         }
         EOF
 
-    # إجبار التجميع الصارم دون استخدام الكاشات الملتفة لتوليد الملف
+    # بدء عملية البناء الصارمة والنظيفة لملف الـ APK
     - name: Compile and Force Build Debug APK
       run: |
         chmod +x gradlew
