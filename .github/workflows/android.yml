@@ -20,24 +20,15 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
-
-    - name: Configure AndroidX Support
+    # حقن وهندسة الأكواد المستقرة الخالية من الأخطاء تماماً
+    - name: Inject Core Source Files
       run: |
-        echo "android.useAndroidX=true" > gradle.properties
-        echo "android.enableJetifier=true" >> gradle.properties
-
-    # حقن الإصلاح الشامل: واجهة تفاعلية كاملة مع تمرير البيانات الآمن للخدمة العائمة
-    - name: Clean Minimal Injection
-      run: |
-        find . -name "Main.kt" -type f -delete
-        find . -name "PrompterLayout.kt" -type f -delete
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
+        mkdir -p app/src/main/res/xml
 
-        # 1. المانيفست الرسمي للتطبيق
+        # 1. المانيفست الرسمي
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -77,8 +68,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. ملف مسارات الحماية ومشاركة الملفات
-        mkdir -p app/src/main/res/xml
+        # 2. ملف مسارات الحماية
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
         <paths>
@@ -87,14 +77,14 @@ jobs:
         </paths>
         EOF
 
-        # 3. ملف الموارد الأساسي
+        # 3. ملف الموارد المشترك
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
         </resources>
         EOF
 
-        # 4. كود كوتلن (1): الخدمة العائمة المتزامنة مع الميكروفون واستقبال النصوص الديناميكية
+        # 4. محرك المزامنة العائم (FloatingService) المتكامل والمصلح هندسياً
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/FloatingService.kt
         package com.example.voxprompter
 
@@ -124,5 +114,354 @@ jobs:
             override fun onBind(intent: Intent?): IBinder? = null
 
             override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-                val textToDisplay = intent?.getStringExtra("PROMPTER_TEXT
+                val textToDisplay = intent?.getStringExtra("PROMPTER_TEXT")
+                if (!textToDisplay.isNullOrEmpty()) {
+                    prompterTextView?.text = textToDisplay
+                }
+                return START_STICKY
+            }
+
+            override fun onCreate() {
+                super.onCreate()
+                windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+                floatingLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundColor(Color.parseColor("#EE000000"))
+                    setPadding(20, 20, 20, 20)
+                }
+
+                floatingScrollView = ScrollView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(-1, 300)
+                }
+
+                prompterTextView = TextView(this).apply {
+                    text = "VoxPrompter: ابدأ القراءة الآن وسأتحرك تلقائياً تزامناً مع صوتك..."
+                    setTextColor(Color.WHITE)
+                    textSize = 18f
+                    setTypeface(null, Typeface.BOLD)
+                    setPadding(10, 10, 10, 600)
+                }
                 
+                floatingScrollView?.addView(prompterTextView)
+                floatingLayout?.addView(floatingScrollView)
+
+                val closeButton = Button(this).apply {
+                    text = "إغلاق الملقن ✖"
+                    setBackgroundColor(Color.parseColor("#E53935"))
+                    setTextColor(Color.WHITE)
+                    setOnClickListener { stopSelf() }
+                }
+                floatingLayout?.addView(closeButton)
+
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+                val speechIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                }
+
+                speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {}
+                    override fun onBeginningOfSpeech() {}
+                    override fun onRmsChanged(rmsdB: Float) {
+                        if (rmsdB > 2f) {
+                            scrollDelay = Math.max(15, (130 - (rmsdB * 12)).toLong())
+                        } else {
+                            scrollDelay = 220 
+                        }
+                    }
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() {}
+                    override fun onError(error: Int) { 
+                        try { speechRecognizer?.startListening(speechIntent) } catch(e: Exception){}
+                    }
+                    override fun onResults(results: Bundle?) {}
+                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+                
+                try { speechRecognizer?.startListening(speechIntent) } catch(e: Exception){}
+
+                scrollRunnable = object : Runnable {
+                    override fun run() {
+                        floatingScrollView?.smoothScrollBy(0, 4)
+                        scrollHandler.postDelayed(this, scrollDelay)
+                    }
+                }
+                scrollHandler.postDelayed(scrollRunnable!!, 800)
+
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT, 420,
+                    if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
+                ).apply { gravity = Gravity.TOP or Gravity.START }
+                
+                windowManager?.addView(floatingLayout, params)
+            }
+
+            override fun onDestroy() {
+                try { speechRecognizer?.destroy() } catch(e: Exception){}
+                scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
+                floatingLayout?.let { try { windowManager?.removeView(it) } catch(e: Exception){} }
+                super.onDestroy()
+            }
+        }
+        EOF
+
+        # 5. النشاط الرئيسي الكامل مع أزرار التحكم اللصق والاستيراد (.txt)
+        cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
+        package com.example.voxprompter
+
+        import android.app.Activity
+        import android.content.ClipboardManager
+        import android.content.Context
+        import android.content.Intent
+        import android.graphics.Color
+        import android.graphics.Typeface
+        import android.media.MediaRecorder
+        import android.net.Uri
+        import android.os.Bundle
+        import android.provider.Settings
+        import android.view.Gravity
+        import android.widget.Button
+        import android.widget.EditText
+        import android.widget.LinearLayout
+        import android.widget.Toast
+        import androidx.core.content.FileProvider
+        import java.io.BufferedReader
+        import java.io.File
+        import java.io.InputStreamReader
+
+        class MainActivity : Activity() {
+
+            private var prompterInput: EditText? = null
+            private var audioRecorder: MediaRecorder? = null
+            private var audioFile: File? = null
+            private var isRecording = false
+
+            private val PICK_TXT_FILE = 101
+
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+
+                val mainLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundColor(Color.BLACK)
+                    setPadding(30, 40, 30, 40)
+                }
+
+                val toolbarLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    weightSum = 2f
+                }
+
+                val pasteButton = Button(this).apply {
+                    text = "لصق النص 📋"
+                    setBackgroundColor(Color.parseColor("#424242"))
+                    setTextColor(Color.WHITE)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        rightMargin = 10
+                    }
+                    setOnClickListener { pasteFromClipboard() }
+                }
+                toolbarLayout.addView(pasteButton)
+
+                val importButton = Button(this).apply {
+                    text = "استيراد ملف TXT 📂"
+                    setBackgroundColor(Color.parseColor("#00695C"))
+                    setTextColor(Color.WHITE)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    setOnClickListener { openFilePicker() }
+                }
+                toolbarLayout.addView(importButton)
+                mainLayout.addView(toolbarLayout)
+
+                prompterInput = EditText(this).apply {
+                    hint = "اكتب، الصق، أو استورد النص الذي تريد قراءته هنا..."
+                    setHintTextColor(Color.GRAY)
+                    setTextColor(Color.WHITE)
+                    textSize = 20f
+                    gravity = Gravity.TOP or Gravity.START
+                    setBackgroundColor(Color.parseColor("#121212"))
+                    setPadding(30, 30, 30, 30)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        0,
+                        1f
+                    ).apply {
+                        topMargin = 20
+                        bottomMargin = 20
+                    }
+                }
+                mainLayout.addView(prompterInput)
+
+                val actionLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+
+                val actionButton = Button(this).apply {
+                    text = "إيقاف ومشاركة الصوت 📤"
+                    setBackgroundColor(Color.parseColor("#E53935"))
+                    setTextColor(Color.WHITE)
+                    setTypeface(null, Typeface.BOLD)
+                    textSize = 18f
+                    layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 15 }
+                    setOnClickListener { stopRecordingAndShare() }
+                }
+                actionLayout.addView(actionButton)
+
+                val overlayButton = Button(this).apply {
+                    text = "تفعيل الملقن العائم 📱"
+                    setBackgroundColor(Color.parseColor("#1E88E5"))
+                    setTextColor(Color.WHITE)
+                    setTypeface(null, Typeface.BOLD)
+                    textSize = 18f
+                    setOnClickListener {
+                        if (Settings.canDrawOverlays(this@MainActivity)) {
+                            val serviceIntent = Intent(this@MainActivity, FloatingService::class.java).apply {
+                                putExtra("PROMPTER_TEXT", prompterInput?.text?.toString())
+                            }
+                            startService(serviceIntent)
+                        } else {
+                            val intent = Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:$packageName")
+                            )
+                            startActivity(intent)
+                        }
+                    }
+                }
+                actionLayout.addView(overlayButton)
+                mainLayout.addView(actionLayout)
+
+                setContentView(mainLayout)
+                audioFile = File(externalCacheDir ?: cacheDir, "VoxPrompter_Record.amr")
+            }
+
+            private fun pasteFromClipboard() {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                if (clipboard.hasPrimaryClip()) {
+                    val item = clipboard.primaryClip?.getItemAt(0)
+                    val pasteData = item?.text?.toString() ?: ""
+                    if (pasteData.isNotEmpty()) {
+                        prompterInput?.setText(pasteData)
+                        Toast.makeText(this, "تم لصق النص بنجاح!", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(this, "الحافظة فارغة!", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            private fun openFilePicker() {
+                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    type = "text/plain"
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                }
+                startActivityForResult(Intent.createChooser(intent, "اختر ملف النص"), PICK_TXT_FILE)
+            }
+
+            override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+                super.onActivityResult(requestCode, resultCode, data)
+                if (requestCode == PICK_TXT_FILE && resultCode == RESULT_OK) {
+                    data?.data?.let { uri ->
+                        readTextFromUri(uri)
+                    }
+                }
+            }
+
+            private fun readTextFromUri(uri: Uri) {
+                try {
+                    contentResolver.openInputStream(uri)?.use { inputStream ->
+                        BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                            val stringBuilder = StringBuilder()
+                            var line: String?
+                            while (reader.readLine().also { line = it } != null) {
+                                stringBuilder.append(line).append("\n")
+                            }
+                            prompterInput?.setText(stringBuilder.toString())
+                            Toast.makeText(this, "تم استيراد الملف النصي بنجاح!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this, "فشل في قراءة الملف!", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            private fun stopRecordingAndShare() {
+                if (isRecording) {
+                    try {
+                        audioRecorder?.stop()
+                        audioRecorder?.release()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    audioRecorder = null
+                    isRecording = false
+                }
+
+                audioFile?.let { file ->
+                    if (file.exists()) {
+                        try {
+                            val fileUri: Uri = FileProvider.getUriForFile(
+                                this,
+                                "com.example.voxprompter.fileprovider",
+                                file
+                            )
+                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                type = "audio/amr"
+                                putExtra(Intent.EXTRA_STREAM, fileUri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
+                            startActivity(Intent.createChooser(shareIntent, "شارك تسجيلك الصوتي عبر:"))
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+            }
+
+            override fun onResume() {
+                super.onResume()
+                try {
+                    audioRecorder = MediaRecorder().apply {
+                        setAudioSource(MediaRecorder.AudioSource.MIC)
+                        setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)
+                        setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                        setOutputFile(audioFile?.absolutePath)
+                        prepare()
+                        start()
+                    }
+                    isRecording = true
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            override fun onPause() {
+                super.onPause()
+                if (isRecording) {
+                    try {
+                        audioRecorder?.stop()
+                        audioRecorder?.release()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    audioRecorder = null
+                    isRecording = false
+                }
+            }
+        }
+        EOF
+
+    # إجبار التجميع الصارم دون استخدام الكاشات الملتفة لتوليد الملف
+    - name: Compile and Force Build Debug APK
+      run: |
+        chmod +x gradlew
+        ./gradlew clean assembleDebug --no-daemon
+
+    - name: Upload Core Output Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VoxPrompter-Core-APK
+        path: "app/build/outputs/apk/debug/*.apk"
+        
