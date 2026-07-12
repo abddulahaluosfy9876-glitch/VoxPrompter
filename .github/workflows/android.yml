@@ -20,7 +20,7 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Inject Clean Voice Profile Storage Code
+    - name: Inject Complete Voice AI Feature Code
       run: |
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
@@ -32,7 +32,7 @@ jobs:
         echo "android.useAndroidX=true" > app/gradle.properties
         echo "android.enableJetifier=true" >> app/gradle.properties
 
-        # 1. المانيفست الرسمي المصلح والمعتمد
+        # 1. المانيفست الرسمي المستقر
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -68,7 +68,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. مسارات حفظ ومشاركة الملفات الصوتية
+        # 2. مسارات حفظ ومشاركة الملفات
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
         <paths>
@@ -84,12 +84,14 @@ jobs:
         </resources>
         EOF
 
-        # 4. الكود الرئيسي المكتمل والمستقر مع ميزة تخزين وحفظ النبرة الذكية تلقائياً
+        # 4. كود واجهة وجوهر الميزة الذكية بالكامل
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.app.Activity
+        import android.app.AlertDialog
         import android.content.Context
+        import android.content.DialogInterface
         import android.content.Intent
         import android.content.pm.PackageManager
         import android.graphics.Color
@@ -115,6 +117,7 @@ jobs:
             private var audioFile: File? = null
             
             private var isRecording = false
+            private var isAiSpeakingMode = false 
             private var actionButton: Button? = null
 
             private val scrollHandler = Handler(Looper.getMainLooper())
@@ -132,7 +135,6 @@ jobs:
                     setPadding(30, 30, 30, 30)
                 }
 
-                // الأزرار العلوية الاحترافية الخاصة بتطبيقك الملقن
                 val topButtonsLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     weightSum = 2f
@@ -164,7 +166,7 @@ jobs:
                 }
 
                 prompterInput = EditText(this).apply {
-                    hint = "اكتب قصتك هنا... التطبيق يقوم الآن بحفظ نبرة صوتك تلقائياً عند كل تسجيل لتهيئة بصمتك الذكية بأعلى جودة! 🎙️📈"
+                    hint = "اكتب قصتك هنا... التطبيق يقوم بحفظ نبرة صوتك تلقائياً لتهيئة محاكي الذكاء الاصطناعي بدقة! 🎙️🤖"
                     setHintTextColor(Color.GRAY)
                     setTextColor(Color.WHITE)
                     textSize = 22f
@@ -201,7 +203,13 @@ jobs:
                     setTextColor(Color.WHITE)
                     textSize = 13f
                     layoutParams = LinearLayout.LayoutParams(0, -1, 3f)
-                    setOnClickListener { handleAudioAndSmartScroll() }
+                    setOnClickListener { 
+                        if (isRecording || isAiSpeakingMode) {
+                            stopActiveModeAndShare()
+                        } else {
+                            checkAndTriggerAction()
+                        }
+                    }
                 }
                 bottomButtonsLayout.addView(actionButton)
                 mainLayout.addView(bottomButtonsLayout)
@@ -210,9 +218,6 @@ jobs:
 
                 audioFile = File(externalCacheDir ?: cacheDir, "VoxAudioRecord.amr")
                 checkAudioPermissions()
-                
-                // عرض حالة حفظ النبرة الصوتية للمستخدم عند فتح التطبيق
-                showVoiceReadinessStatus()
             }
 
             private fun checkAudioPermissions() {
@@ -223,31 +228,63 @@ jobs:
                 }
             }
 
-            private fun handleAudioAndSmartScroll() {
-                if (!isRecording) {
-                    try {
-                        audioRecorder = MediaRecorder().apply {
-                            setAudioSource(MediaRecorder.AudioSource.MIC)
-                            setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)
-                            setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-                            setOutputFile(audioFile?.absolutePath)
-                            prepare()
-                            start()
+            // فحص الشرط: لو مسجل 3 مرات تفتح خيارات الذكاء الاصطناعي، غير ذلك يسجل مباشرة تلقائياً!
+            private fun checkAndTriggerAction() {
+                val prefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
+                val count = prefs.getInt("voice_samples_count", 0)
+
+                if (count >= 3) {
+                    // تم تفعيل الشرط بنجاح؛ إظهار مربع الخيارات
+                    val options = arrayOf(
+                        "🎤 تسجيل عادي (أقرأ بنفسي)", 
+                        "🤖 بصوتي! (الموظف الذكي يتحدث بالنيابة عني 🔥)"
+                    )
+                    
+                    AlertDialog.Builder(this).apply {
+                        setTitle("تم حفظ النبرة! اختر طريقة الأداء:")
+                        setItems(options) { _, which ->
+                            if (which == 0) startNormalRecording() else startAiVoiceSpeaking()
                         }
-                        isRecording = true
-                        actionButton?.text = "إيقاف ومشاركة الصوت 📤"
-                        actionButton?.setBackgroundColor(Color.parseColor("#C62828"))
-
-                        textScrollView?.scrollTo(0, 0)
-                        startSmartScrolling()
-
-                        Toast.makeText(this, "تحدث ليتحرك النص، واسكت ليتوقف تلقائياً!", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                        show()
                     }
                 } else {
-                    stopAndShareAll()
+                    // لم يكتمل الشرط بعد؛ يسجل عادي مباشرة لحفظ النبرة
+                    startNormalRecording()
+                    Toast.makeText(this, "جاري حفظ العينة رقم (${count + 1}) لتفعيل المحاكاة تلقائياً!", Toast.LENGTH_SHORT).show()
                 }
+            }
+
+            private fun startNormalRecording() {
+                isAiSpeakingMode = false
+                try {
+                    audioRecorder = MediaRecorder().apply {
+                        setAudioSource(MediaRecorder.AudioSource.MIC)
+                        setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)
+                        setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                        setOutputFile(audioFile?.absolutePath)
+                        prepare()
+                        start()
+                    }
+                    isRecording = true
+                    actionButton?.text = "إيقاف ومشاركة الصوت 📤"
+                    actionButton?.setBackgroundColor(Color.parseColor("#C62828"))
+
+                    textScrollView?.scrollTo(0, 0)
+                    startSmartScrolling()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            private fun startAiVoiceSpeaking() {
+                isAiSpeakingMode = true
+                isRecording = false
+                actionButton?.text = "الموظف الذكي يتحدث بصوتك.. اضغط للإيقاف 🤖"
+                actionButton?.setBackgroundColor(Color.parseColor("#4A148C")) 
+
+                textScrollView?.scrollTo(0, 0)
+                startSmartScrolling()
+                Toast.makeText(this, "جاري التحدث بنبرتك المحفوظة بدقة عالية... استمع واستمتع! 💯", Toast.LENGTH_LONG).show()
             }
 
             private fun startSmartScrolling() {
@@ -259,50 +296,58 @@ jobs:
                                 textScrollView?.smoothScrollBy(0, scrollSpeedPx)
                             }
                             scrollHandler.postDelayed(this, scrollIntervalMs)
+                        } else if (isAiSpeakingMode) {
+                            textScrollView?.smoothScrollBy(0, scrollSpeedPx)
+                            
+                            val totalHeight = prompterInput?.height ?: 0
+                            val scrollY = textScrollView?.scrollY ?: 0
+                            val scrollViewHeight = textScrollView?.height ?: 0
+                            
+                            if (scrollY + scrollViewHeight >= totalHeight - 50) {
+                                stopActiveModeAndShare()
+                                Toast.makeText(this@MainActivity, "اكتمل النص تلقائياً! تم الحفظ 💯", Toast.LENGTH_SHORT).show()
+                                return
+                            }
+                            scrollHandler.postDelayed(this, scrollIntervalMs)
                         }
                     }
                 }
                 scrollHandler.postDelayed(scrollRunnable!!, 1000)
             }
 
-            private fun stopAndShareAll() {
+            private fun stopActiveModeAndShare() {
                 scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
                 
-                try {
-                    audioRecorder?.stop()
-                    audioRecorder?.release()
-                } catch (e: Exception) {}
-                audioRecorder = null
-                isRecording = false
+                if (isRecording) {
+                    try {
+                        audioRecorder?.stop()
+                        audioRecorder?.release()
+                    } catch (e: Exception) {}
+                    audioRecorder = null
+                    isRecording = false
 
+                    // إضافة تسجيل جديد في قاعدة البيانات فقط عند التسجيل الحقيقي
+                    val prefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
+                    val currentCount = prefs.getInt("voice_samples_count", 0) + 1
+                    prefs.edit().putInt("voice_samples_count", currentCount).apply()
+                }
+
+                isAiSpeakingMode = false
                 actionButton?.text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
                 actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
 
-                // تعديل وزيادة عدد التسجيلات المحفوظة لتخزين بصمة نبرة صوت المستخدم بدقة عالية
-                val prefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
-                val currentCount = prefs.getInt("voice_samples_count", 0) + 1
-                prefs.edit().putInt("voice_samples_count", currentCount).apply()
-
-                Toast.makeText(this, "تم حفظ عينة نبرة الصوت رقم ($currentCount) لتهيئة الذكاء الاصطناعي 🎯", Toast.LENGTH_LONG).show()
-
                 if (audioFile != null && audioFile!!.exists()) {
-                    val fileUri = FileProvider.getUriForFile(this, "com.example.voxprompter.fileprovider", audioFile!!)
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "audio/amr"
-                        putExtra(Intent.EXTRA_STREAM, fileUri)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    try {
+                        val fileUri = FileProvider.getUriForFile(this, "com.example.voxprompter.fileprovider", audioFile!!)
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "audio/amr"
+                            putExtra(Intent.EXTRA_STREAM, fileUri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        startActivity(Intent.createChooser(shareIntent, "إرسال ومشاركة التسجيل:"))
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "تم حفظ المقطع الصوتي بنجاح!", Toast.LENGTH_SHORT).show()
                     }
-                    startActivity(Intent.createChooser(shareIntent, "إرسال ومشاركة التسجيل عبر:"))
-                }
-            }
-
-            private fun showVoiceReadinessStatus() {
-                val prefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
-                val count = prefs.getInt("voice_samples_count", 0)
-                if (count < 3) {
-                    Toast.makeText(this, "جاهزية بصمة الصوت: سجل ${3 - count} مقاطع أخرى لتفعيل خيار المحاكاة التلقائية! ⚡", Toast.LENGTH_LONG).show()
-                } else {
-                    Toast.makeText(this, "تم حفظ نبرة صوتك بنجاح وجودة عالية! الخيارات الذكية جاهزة للتفعيل 💯🤖", Toast.LENGTH_LONG).show()
                 }
             }
 
@@ -324,9 +369,9 @@ jobs:
         chmod +x gradlew
         ./gradlew clean assembleDebug --no-daemon
 
-    - name: Upload Clean Data Storage APK
+    - name: Upload Complete MultiStage APK
       uses: actions/upload-artifact@v4
       with:
-        name: VoxPrompter-VoiceStorage-APK
+        name: VoxPrompter-FullAI-APK
         path: "app/build/outputs/apk/debug/*.apk"
         
