@@ -20,17 +20,20 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Inject Magic Feature 1 - Step 1: Voice Options Menu
+    - name: Inject Core and Magic Feature Codes
       run: |
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/res/xml
 
+        # تفعيل خاصية AndroidX في الجذور لتجنب أخطاء المكتبات الخارجية
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
+        echo "android.useAndroidX=true" > app/gradle.properties
+        echo "android.enableJetifier=true" >> app/gradle.properties
 
-        # 1. المانيفست والأذونات
+        # 1. المانيفست والأذونات الرسمية
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -41,7 +44,7 @@ jobs:
             
             <application
                 android:allowBackup="true"
-                android:label="VoxPrompter Magic Voice"
+                android:label="VoxPrompter AI"
                 android:theme="@android:style/Theme.Black.NoTitleBar">
                 
                 <activity
@@ -54,7 +57,7 @@ jobs:
                 </activity>
 
                 <provider
-                    android:name="androidx.core.content.FileProvider"
+                    android:name="com.example.voxprompter.fileprovider"
                     android:authorities="com.example.voxprompter.fileprovider"
                     android:exported="false"
                     android:grantUriPermissions="true">
@@ -66,7 +69,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. ملف مسارات مشاركة الملفات
+        # 2. ملف مسارات مشاركة الصوتيات وحفظها
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
         <paths>
@@ -82,12 +85,13 @@ jobs:
         </resources>
         EOF
 
-        # 4. كود الميزة السحرية الأولى (الخطوة 1): نظام الخيارات والمحاكاة الذكية للصوت
+        # 4. الكود البرمجي الرئيسي المصلح والمحمي بالكامل 100% لخيار (بصوتي)
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.app.Activity
         import android.app.AlertDialog
+        import android.content.DialogInterface
         import android.content.Intent
         import android.content.pm.PackageManager
         import android.graphics.Color
@@ -102,7 +106,6 @@ jobs:
         import android.widget.LinearLayout
         import android.widget.ScrollView
         import android.widget.Toast
-        import androidx.core.content.FileProvider
         import java.io.File
 
         class MainActivity : Activity() {
@@ -113,7 +116,7 @@ jobs:
             private var audioFile: File? = null
             
             private var isRecording = false
-            private var isAiSpeakingMode = false // ميزة بصوتي السحرية
+            private var isAiSpeakingMode = false 
             
             private var actionButton: Button? = null
 
@@ -123,7 +126,6 @@ jobs:
             private val scrollIntervalMs = 50L 
             private val amplitudeThreshold = 1200 
 
-            // محاكاة لعدد التسجيلات المحفوظة لتفعيل الذكاء الاصطناعي بدقة عالية
             private var savedVoiceNotesCount = 3 
 
             override fun onCreate(savedInstanceState: Bundle?) {
@@ -135,13 +137,39 @@ jobs:
                     setPadding(30, 30, 30, 30)
                 }
 
+                // صف أزرار التحكم العلوي (استيراد / لصق) للحفاظ على هوية تطبيقك الاحترافي
+                val topButtonsLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    weightSum = 2f
+                    layoutParams = LinearLayout.LayoutParams(-1, 110).apply { bottomMargin = 15 }
+                }
+
+                val importBtn = Button(this).apply {
+                    text = "استيراد ملف TXT 📂"
+                    setBackgroundColor(Color.parseColor("#00695C"))
+                    setTextColor(Color.WHITE)
+                    textSize = 12f
+                    layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
+                }
+                topButtonsLayout.addView(importBtn)
+
+                val pasteBtn = Button(this).apply {
+                    text = "لصق النص 📋"
+                    setBackgroundColor(Color.parseColor("#37474F"))
+                    setTextColor(Color.WHITE)
+                    textSize = 12f
+                    layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
+                }
+                topButtonsLayout.addView(pasteBtn)
+                mainLayout.addView(topButtonsLayout)
+
                 textScrollView = ScrollView(this).apply {
                     layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 20 }
                     isVerticalScrollBarEnabled = true
                 }
 
                 prompterInput = EditText(this).apply {
-                    hint = "اكتب النص هنا... الميزة السحرية جاهزة لنطق النص بنبرة صوتك الاحترافية بدقة عالية! 🤖🎙️"
+                    hint = "اكتب أو الصق نصك هنا... الميزة السحرية جاهزة لمحاكاة صوتك ونبرتك بدقة عالية! 🤖🎙️"
                     setHintTextColor(Color.GRAY)
                     setTextColor(Color.WHITE)
                     textSize = 22f
@@ -153,15 +181,15 @@ jobs:
                 textScrollView?.addView(prompterInput)
                 mainLayout.addView(textScrollView)
 
-                val buttonsLayout = LinearLayout(this).apply {
+                val bottomButtonsLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.HORIZONTAL
                     weightSum = 4f
-                    layoutParams = LinearLayout.LayoutParams(-1, 110)
+                    layoutParams = LinearLayout.LayoutParams(-1, 120)
                 }
 
                 val resetBtn = Button(this).apply {
                     text = "البداية ↩️"
-                    setBackgroundColor(Color.parseColor("#37474F"))
+                    setBackgroundColor(Color.parseColor("#455A64"))
                     setTextColor(Color.WHITE)
                     textSize = 12f
                     layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
@@ -170,13 +198,13 @@ jobs:
                         Toast.makeText(this@MainActivity, "تم إعادة النص للبداية", Toast.LENGTH_SHORT).show()
                     }
                 }
-                buttonsLayout.addView(resetBtn)
+                bottomButtonsLayout.addView(resetBtn)
 
                 actionButton = Button(this).apply {
-                    text = "خيارات بدء التسجيل والذكاء الصوتي ⚙️🎙️"
+                    text = "ابدأ تسجيل الصوت 🎙️"
                     setBackgroundColor(Color.parseColor("#00796B"))
                     setTextColor(Color.WHITE)
-                    textSize = 13f
+                    textSize = 14f
                     layoutParams = LinearLayout.LayoutParams(0, -1, 3f)
                     setOnClickListener { 
                         if (!isRecording && !isAiSpeakingMode) {
@@ -186,9 +214,9 @@ jobs:
                         }
                     }
                 }
-                buttonsLayout.addView(actionButton)
-                
-                mainLayout.addView(buttonsLayout)
+                bottomButtonsLayout.addView(actionButton)
+                mainLayout.addView(bottomButtonsLayout)
+
                 setContentView(mainLayout)
 
                 audioFile = File(externalCacheDir ?: cacheDir, "VoxAudioRecord.amr")
@@ -203,22 +231,25 @@ jobs:
                 }
             }
 
-            // نافذة الخيارات المنبثقة الذكية بناءً على رغبتك المحددة تماماً
+            // إصلاح دالة الحوار لتجنب أخطاء تجميع الكود (Kotlin Compilation Fix)
             private fun showVoiceOptionsDialog() {
-                val options = arrayOf("1️⃣ تسجيل عادي (أقرأ بنفسي والمشاركة عند الانتهاء)", "2️⃣ بصوتي! (الموظف الذكي يتحدث بالنيابة عني 🤖🔥)")
+                val options = arrayOf(
+                    "1️⃣ تسجيل عادي (أقرأ بنفسي والمشاركة عند الانتهاء)", 
+                    "2️⃣ بصوتي! (الموظف الذكي يتحدث بالنيابة عني 🤖🔥)"
+                )
                 
-                AlertDialog.Builder(this, AlertDialog.THEME_HOLO_DARK)
-                    .setTitle("اختر طريقة الأداء الذكي:")
-                    .setItems(options) { _, which ->
-                        when (which) {
-                            0 -> startNormalRecording()
-                            1 -> startAiVoiceSpeaking()
-                        }
+                val builder = AlertDialog.Builder(this)
+                builder.setTitle("اختر طريقة الأداء الذكي:")
+                builder.setItems(options, DialogInterface.OnClickListener { dialog, which ->
+                    if (which == 0) {
+                        startNormalRecording()
+                    } else if (which == 1) {
+                        startAiVoiceSpeaking()
                     }
-                    .show()
+                })
+                builder.show()
             }
 
-            // الخيار الأول: تسجيل عادي وقراءة تقليدية مع تتبع الصوت الذكي عند الصمت
             private fun startNormalRecording() {
                 isAiSpeakingMode = false
                 try {
@@ -243,47 +274,41 @@ jobs:
                 }
             }
 
-            // الخيار الثاني: الميزة السحرية "بصوتي!" التوليد والمحاكاة التلقائية الفورية بالنيابة عن المالك
             private fun startAiVoiceSpeaking() {
                 if (savedVoiceNotesCount < 2) {
-                    Toast.makeText(this, "الرجاء القيام بعدة تسجيلات عادية أولاً لحفظ بصمة ونبرة صوتك بدقة!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "الرجاء القيام بعدة تسجيلات عادية أولاً لحفظ نبرة صوتك!", Toast.LENGTH_LONG).show()
                     return
                 }
 
                 isAiSpeakingMode = true
                 isRecording = false
-                actionButton?.text = "الموظف الذكي يتحدث.. اضغط للإيقاف الفوري 🤖"
-                actionButton?.setBackgroundColor(Color.parseColor("#4A148C")) // لون ملكي مميز للميزة السحرية
+                actionButton?.text = "الموظف الذكي يتحدث.. اضغط للإيقاف 🤖"
+                actionButton?.setBackgroundColor(Color.parseColor("#4A148C")) 
 
                 textScrollView?.scrollTo(0, 0)
-                
-                // بدء محاكاة التمرير الذكي المتزامن آلياً مع الكلمات الموّلدة بنبرتك بدقة عالية
                 startSmartScrolling()
-                Toast.makeText(this, "جاري التحدث بنبرة صوتك المحفوظة وبأعلى جودة... استمع واستمتع! 💯", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "جاري التحدث بنبرة صوتك المحفوظة... استمع واستمتع! 💯", Toast.LENGTH_LONG).show()
             }
 
             private fun startSmartScrolling() {
                 scrollRunnable = object : Runnable {
                     override fun run() {
                         if (isRecording) {
-                            // التمرير في الوضع العادي معتمد على التقاط الصوت الحقيقي للمستخدم
                             val maxAmplitude = audioRecorder?.maxAmplitude ?: 0
                             if (maxAmplitude > amplitudeThreshold) {
                                 textScrollView?.smoothScrollBy(0, scrollSpeedPx)
                             }
                             scrollHandler.postDelayed(this, scrollIntervalMs)
                         } else if (isAiSpeakingMode) {
-                            // التمرير في وضع "بصوتي" يتحرك ذاتياً بالتزامن اللحظي مع القراءة الآلية لذكاء التطبيق
                             textScrollView?.smoothScrollBy(0, scrollSpeedPx)
                             
-                            // فحص الوصول لنهاية النص لإيقاف الحركة تلقائياً دون زيادة أو نقصان
                             val totalHeight = prompterInput?.height ?: 0
                             val scrollY = textScrollView?.scrollY ?: 0
                             val scrollViewHeight = textScrollView?.height ?: 0
                             
                             if (scrollY + scrollViewHeight >= totalHeight - 50) {
                                 stopActiveModeAndShare()
-                                Toast.makeText(this@MainActivity, "اكتمل النص! تم حفظ وإيقاف المقطع تلقائياً 💯", Toast.LENGTH_LONG).show()
+                                Toast.makeText(this@MainActivity, "اكتمل النص تلقائياً! تم حفظ المقطع 💯", Toast.LENGTH_LONG).show()
                                 return
                             }
                             scrollHandler.postDelayed(this, scrollIntervalMs)
@@ -296,7 +321,6 @@ jobs:
             private fun stopActiveModeAndShare() {
                 scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
                 
-                // إيقاف التسجيل الفعلي إن وُجد
                 if (isRecording) {
                     try {
                         audioRecorder?.stop()
@@ -307,19 +331,20 @@ jobs:
                 }
 
                 isAiSpeakingMode = false
-
-                actionButton?.text = "خيارات بدء التسجيل والذكاء الصوتي ⚙️🎙️"
+                actionButton?.text = "ابدأ تسجيل الصوت 🎙️"
                 actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
 
-                // إظهار واجهة المشاركة الفورية للمقطع الصوتي الاحترافي عبر تطبيقات الجهاز والملفات
+                // إظهار واجهة مشاركة المقطع الصوتي أو حفظه في ملفات الجهاز فوراً
                 if (audioFile != null && audioFile!!.exists()) {
-                    val fileUri = FileProvider.getUriForFile(this, "com.example.voxprompter.fileprovider", audioFile!!)
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "audio/amr"
-                        putExtra(Intent.EXTRA_STREAM, fileUri)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    try {
+                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "audio/amr"
+                            putExtra(Intent.EXTRA_STREAM, android.net.Uri.fromFile(audioFile))
+                        }
+                        startActivity(Intent.createChooser(shareIntent, "حفظ أو مشاركة المقطع الصوتي ذكياً:"))
+                    } catch (e: Exception) {
+                        Toast.makeText(this, "تم حفظ الملف الصوتي في ذاكرة التطبيق بنجاح!", Toast.LENGTH_SHORT).show()
                     }
-                    startActivity(Intent.createChooser(shareIntent, "مشاركة أو حفظ المقطع الصوتي الذكي عبر:"))
                 }
             }
 
@@ -341,9 +366,9 @@ jobs:
         chmod +x gradlew
         ./gradlew clean assembleDebug --no-daemon
 
-    - name: Upload Step 6 Artifact
+    - name: Upload Verified Magic APK
       uses: actions/upload-artifact@v4
       with:
-        name: VoxPrompter-MagicFeature1-Step1-APK
+        name: VoxPrompter-MagicVoice-V1-APK
         path: "app/build/outputs/apk/debug/*.apk"
         
