@@ -28,7 +28,7 @@ jobs:
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
 
-    # حقن الحجر الحادي عشر: دمج محرك التمرير التلقائي الذكي داخل نافذة الملقن العائم المصغر
+    # حقن الحجر الرابع عشر: صندوق النصوص التفاعلي وأدوات اللصق والاستيراد الذكي
     - name: Clean Minimal Injection
       run: |
         find . -name "Main.kt" -type f -delete
@@ -37,7 +37,7 @@ jobs:
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
 
-        # 1. المانيفست الرسمي للتطبيق مع كامل الصلاحيات والخدمات
+        # 1. المانيفست الرسمي للتطبيق
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -77,7 +77,7 @@ jobs:
         </manifest>
         EOF
 
-        # 2. ملف مسارات الحماية ومشاركة الملفات الصافية
+        # 2. ملف مسارات الحماية
         mkdir -p app/src/main/res/xml
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
@@ -94,7 +94,7 @@ jobs:
         </resources>
         EOF
 
-        # 4. كود كوتلن (1): حقن محرك الـ Auto-Scroll والـ ScrollView التلقائي داخل النافذة العائمة
+        # 4. كود كوتلن (1): محرك المزامنة التكيفية العائم (FloatingService) المستقر
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/FloatingService.kt
         package com.example.voxprompter
 
@@ -104,28 +104,21 @@ jobs:
         import android.graphics.Color
         import android.graphics.PixelFormat
         import android.graphics.Typeface
-        import android.os.Build
-        import android.os.Handler
-        import android.os.IBinder
-        import android.os.Looper
-        import android.view.Gravity
-        import android.view.MotionEvent
-        import android.view.View
-        import android.view.WindowManager
-        import android.widget.Button
-        import android.widget.LinearLayout
-        import android.widget.ScrollView
-        import android.widget.TextView
+        import android.os.*
+        import android.speech.RecognitionListener
+        import android.speech.RecognizerIntent
+        import android.speech.SpeechRecognizer
+        import android.view.*
+        import android.widget.*
 
         class FloatingService : Service() {
-
             private var windowManager: WindowManager? = null
             private var floatingLayout: LinearLayout? = null
-            
-            // تهيئة متغيرات التمرير التلقائي لضمان المزامنة وحركة النص الانسيابية
             private var floatingScrollView: ScrollView? = null
             private val scrollHandler = Handler(Looper.getMainLooper())
             private var scrollRunnable: Runnable? = null
+            private var scrollDelay: Long = 100 
+            private var speechRecognizer: SpeechRecognizer? = null
 
             override fun onBind(intent: Intent?): IBinder? = null
 
@@ -135,129 +128,82 @@ jobs:
 
                 floatingLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
-                    setBackgroundColor(Color.parseColor("#CC000000"))
-                    setPadding(25, 25, 25, 25)
+                    setBackgroundColor(Color.parseColor("#EE000000"))
+                    setPadding(20, 20, 20, 20)
                 }
 
-                // 1. إنشاء حاوية التمرير الطولية برمجياً وتحديد وزنها داخل التصميم العائم
-                val scrollView = ScrollView(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        250 // تخصيص ارتفاع مريح لعرض النص داخل الشاشة المصغرة
-                    )
+                floatingScrollView = ScrollView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(-1, 300)
                 }
-                floatingScrollView = scrollView
 
-                // 2. نص الملقن الطويل والمتحرك داخل الشاشة العائمة
-                val floatingText = TextView(this).apply {
-                    text = "نص الملقن العائم يتحرك الآن تلقائياً أمامك..\n\nيمكنك الآن الخروج وتصفح أي تطبيق آخر أو فتح كاميرا الهاتف للتصوير، بينما يتحرك هذا النص بسلاسة تامة لتقرأ منه بحرية وبدون تشتت.\n\nاضغط على زر الإغلاق بالأسفل للعودة للتطبيق في أي وقت."
+                val textView = TextView(this).apply {
+                    text = "VoxPrompter Sync: تحدث معي.. سأتحرك مع نبرة صوتك!\n\nنظام التزامن الذكي يراقب قوة صوتك الآن ويقوم بتسريع أو إبطاء حركة النص تلقائياً ليتناسب تماماً مع سرعة إلقائك."
                     setTextColor(Color.WHITE)
-                    textSize = 18f
-                    typeface = Typeface.DEFAULT_BOLD
-                    gravity = Gravity.CENTER_HORIZONTAL
-                    setLineSpacing(0f, 1.4f)
-                    setPadding(10, 10, 10, 400) // حواف سفلية لمنع انقطاع النص أثناء التحريك
-                }
-                scrollView.addView(floatingText)
-                floatingLayout?.addView(scrollView)
-
-                // 3. زر إغلاق الخدمة العائمة والعودة للواجهة الرئيسية
-                val closeButton = Button(this).apply {
-                    text = "إغلاق الملقن ✖"
-                    setBackgroundColor(Color.parseColor("#E53935"))
-                    setTextColor(Color.WHITE)
-                    setTypeface(Typeface.DEFAULT_BOLD)
-                    setOnClickListener { stopSelf() }
+                    textSize = 16f
+                    setPadding(10, 10, 10, 500)
                 }
                 
-                val btnParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    topMargin = 15
-                }
-                closeButton.layoutParams = btnParams
-                floatingLayout?.addView(closeButton)
+                floatingScrollView?.addView(textView)
+                floatingLayout?.addView(floatingScrollView)
 
-                val layoutFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-                } else {
-                    WindowManager.LayoutParams.TYPE_PHONE
+                speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+                val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                 }
 
-                val params = WindowManager.LayoutParams(
-                    WindowManager.LayoutParams.MATCH_PARENT,
-                    480, // تعديل الارتفاع الكلي ليناسب التصميم والمحرك الجديد
-                    layoutFlag,
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
-                    PixelFormat.TRANSLUCENT
-                ).apply {
-                    gravity = Gravity.TOP or Gravity.START
-                    x = 0
-                    y = 200
-                }
-
-                // ميزة سحب وتحريك النافذة يدوياً لحماية رؤية التطبيقات الأخرى
-                floatingLayout?.setOnTouchListener(object : View.OnTouchListener {
-                    private var initialX = 0
-                    private var initialY = 0
-                    private var initialTouchX = 0f
-                    private var initialTouchY = 0f
-
-                    override fun onTouch(v: View?, event: MotionEvent?): Boolean {
-                        if (event == null) return false
-                        when (event.action) {
-                            MotionEvent.ACTION_DOWN -> {
-                                initialX = params.x
-                                initialY = params.y
-                                initialTouchX = event.rawX
-                                initialTouchY = event.rawY
-                                return true
-                            }
-                            MotionEvent.ACTION_MOVE -> {
-                                params.x = initialX + (event.rawX - initialTouchX).toInt()
-                                params.y = initialY + (event.rawY - initialTouchY).toInt()
-                                windowManager?.updateViewLayout(floatingLayout, params)
-                                return true
-                            }
+                speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {}
+                    override fun onBeginningOfSpeech() {}
+                    override fun onRmsChanged(rmsdB: Float) {
+                        if (rmsdB > 2) {
+                            scrollDelay = Math.max(10, (120 - (rmsdB * 10)).toLong())
+                        } else {
+                            scrollDelay = 200 
                         }
-                        return false
                     }
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+                    override fun onEndOfSpeech() {}
+                    override fun onError(error: Int) { speechRecognizer?.startListening(intent) }
+                    override fun onResults(results: Bundle?) {}
+                    override fun onPartialResults(partialResults: Bundle?) {}
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
                 })
+                speechRecognizer?.startListening(intent)
 
-                windowManager?.addView(floatingLayout, params)
-
-                // 4. تشغيل محرك الحركة التلقائية الآمن فور ظهور الشاشة العائمة
                 scrollRunnable = object : Runnable {
                     override fun run() {
-                        floatingScrollView?.smoothScrollBy(0, 2)
-                        scrollRunnable?.let { scrollHandler.postDelayed(it, 50) }
+                        floatingScrollView?.smoothScrollBy(0, 5)
+                        scrollHandler.postDelayed(this, scrollDelay)
                     }
                 }
-                scrollHandler.postDelayed(scrollRunnable!!, 1500) // بدء التمرير بعد ثانية ونصف لراحة عين القارئ
+                scrollHandler.postDelayed(scrollRunnable!!, 500)
+
+                val params = WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT, 400,
+                    if (Build.VERSION.SDK_INT >= 26) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY else WindowManager.LayoutParams.TYPE_PHONE,
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE, PixelFormat.TRANSLUCENT
+                ).apply { gravity = Gravity.TOP or Gravity.START }
+                
+                windowManager?.addView(floatingLayout, params)
             }
 
             override fun onDestroy() {
-                super.onDestroy()
-                // إيقاف ملقن الحركة وتنظيف الذاكرة بأمان تام لمنع أي تسريب خلفي للبيانات
+                speechRecognizer?.destroy()
                 scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
-                
-                floatingLayout?.let {
-                    try {
-                        windowManager?.removeView(it)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
+                floatingLayout?.let { windowManager?.removeView(it) }
+                super.onDestroy()
             }
         }
         EOF
 
-        # 5. كود كوتلن (2): النشاط الرئيسي المستقر تماماً
+        # 5. كود كوتلن (2): النشاط الرئيسي المحدث بالكامل مع صناديق النصوص وأزرار اللصق والاستيراد (.txt)
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.app.Activity
+        import android.content.ClipboardManager
+        import android.content.Context
         import android.content.Intent
         import android.graphics.Color
         import android.graphics.Typeface
@@ -269,113 +215,172 @@ jobs:
         import android.provider.Settings
         import android.view.Gravity
         import android.widget.Button
-        import android.widget.FrameLayout
+        import android.widget.EditText
         import android.widget.LinearLayout
         import android.widget.ScrollView
-        import android.widget.TextView
+        import android.widget.Toast
         import androidx.core.content.FileProvider
+        import java.io.BufferedReader
         import java.io.File
+        import java.io.InputStreamReader
 
         class MainActivity : Activity() {
 
-            private var scrollerView: ScrollView? = null
-            private val mainHandler = Handler(Looper.getMainLooper())
-            private var scrollRunnable: Runnable? = null
-            
+            private var prompterInput: EditText? = null
             private var audioRecorder: MediaRecorder? = null
             private var audioFile: File? = null
             private var isRecording = false
 
+            private val PICK_TXT_FILE = 101
+
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
 
-                val mainLayout = FrameLayout(this)
-                mainLayout.setBackgroundColor(Color.BLACK)
+                // الحاوية الرئيسية الواجهة
+                val mainLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundColor(Color.BLACK)
+                    setPadding(30, 40, 30, 40)
+                }
 
-                val mainScrollView = ScrollView(this)
-                scrollerView = mainScrollView
-                
-                val prompterTextView = TextView(this)
-                prompterTextView.text = "ميزة التسجيل الصوتي النقي وحفظ الملفات مباشرة على جهازك.\n\nالآن وأنت تقرأ هذا النص المنسق والمتحرك تلقائياً، يقوم محرك VoxPrompter الصوتي بالاستماع إليك وتسجيل نبرات صوتك بجودة ونقاء عاليين.\n\nفي الأسفل، قمنا بإضافة ميزة الاختصار الذكي؛ لتفعيل وضع الشاشة العائمة فوق التطبيقات الأخرى يدوياً وتسهيل القراءة أثناء تصفح هاتفك وحفظ تسجيلاتك بكل حرية."
-                
-                prompterTextView.setTextSize(28f)
-                prompterTextView.setTextColor(Color.WHITE)
-                prompterTextView.setGravity(Gravity.CENTER_HORIZONTAL)
-                prompterTextView.setTypeface(Typeface.DEFAULT_BOLD)
-                prompterTextView.setLineSpacing(0f, 1.5f)
-                prompterTextView.setPadding(45, 100, 45, 1000)
+                // شريط الأدوات العلوي (اللصق والاستيراد)
+                val toolbarLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    weightSum = 2f
+                }
 
-                mainScrollView.addView(prompterTextView)
-                mainLayout.addView(mainScrollView)
+                val pasteButton = Button(this).apply {
+                    text = "لصق النص 📋"
+                    setBackgroundColor(Color.parseColor("#424242"))
+                    setTextColor(Color.WHITE)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                        rightMargin = 10
+                    }
+                    setOnClickListener { pasteFromClipboard() }
+                }
+                toolbarLayout.addView(pasteButton)
 
-                val buttonContainer = LinearLayout(this)
-                buttonContainer.orientation = LinearLayout.VERTICAL
-                
-                val containerParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    Gravity.BOTTOM
-                )
-                buttonContainer.layoutParams = containerParams
+                val importButton = Button(this).apply {
+                    text = "استيراد ملف TXT 📂"
+                    setBackgroundColor(Color.parseColor("#00695C"))
+                    setTextColor(Color.WHITE)
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    setOnClickListener { openFilePicker() }
+                }
+                toolbarLayout.addView(importButton)
+                mainLayout.addView(toolbarLayout)
 
-                val actionButton = Button(this)
-                actionButton.text = "إيقاف ومشاركة الصوت 📤"
-                actionButton.setBackgroundColor(Color.parseColor("#E53935"))
-                actionButton.setTextColor(Color.WHITE)
-                actionButton.setTypeface(Typeface.DEFAULT_BOLD)
-                actionButton.setTextSize(18f)
-                
-                val btnParams1 = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                btnParams1.setMargins(50, 10, 50, 10)
-                actionButton.layoutParams = btnParams1
-                actionButton.setOnClickListener { stopRecordingAndShare() }
-                buttonContainer.addView(actionButton)
-
-                val overlayButton = Button(this)
-                overlayButton.text = "تفعيل الملقن العائم 📱"
-                overlayButton.setBackgroundColor(Color.parseColor("#1E88E5"))
-                overlayButton.setTextColor(Color.WHITE)
-                overlayButton.setTypeface(Typeface.DEFAULT_BOLD)
-                overlayButton.setTextSize(18f)
-                
-                val btnParams2 = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                btnParams2.setMargins(50, 10, 50, 40)
-                overlayButton.layoutParams = btnParams2
-                
-                overlayButton.setOnClickListener {
-                    if (Settings.canDrawOverlays(this)) {
-                        startService(Intent(this, FloatingService::class.java))
-                    } else {
-                        val intent = Intent(
-                            Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                            Uri.parse("package:$packageName")
-                        )
-                        startActivity(intent)
+                // صندوق إدخال وتعديل النصوص المتقدم
+                prompterInput = EditText(this).apply {
+                    hint = "اكتب، الصق، أو استورد النص الذي تريد قراءته هنا..."
+                    setHintTextColor(Color.GRAY)
+                    setTextColor(Color.WHITE)
+                    textSize = 20f
+                    gravity = Gravity.TOP or Gravity.START
+                    setBackgroundColor(Color.parseColor("#121212"))
+                    setPadding(30, 30, 30, 30)
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        0,
+                        1f
+                    ).apply {
+                        topMargin = 20
+                        bottomMargin = 20
                     }
                 }
-                buttonContainer.addView(overlayButton)
+                mainLayout.addView(prompterInput)
 
-                mainLayout.addView(buttonContainer)
+                // شريط الأزرار السفلي (التسجيل والملقن العائم)
+                val actionLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+
+                val actionButton = Button(this).apply {
+                    text = "إيقاف ومشاركة الصوت 📤"
+                    setBackgroundColor(Color.parseColor("#E53935"))
+                    setTextColor(Color.WHITE)
+                    setTypeface(Typeface.DEFAULT_BOLD)
+                    textSize = 18f
+                    layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = 15 }
+                    setOnClickListener { stopRecordingAndShare() }
+                }
+                actionLayout.addView(actionButton)
+
+                val overlayButton = Button(this).apply {
+                    text = "تفعيل الملقن العائم 📱"
+                    setBackgroundColor(Color.parseColor("#1E88E5"))
+                    setTextColor(Color.WHITE)
+                    setTypeface(Typeface.DEFAULT_BOLD)
+                    textSize = 18f
+                    setOnClickListener {
+                        if (Settings.canDrawOverlays(this@MainActivity)) {
+                            startService(Intent(this@MainActivity, FloatingService::class.java))
+                        } else {
+                            val intent = Intent(
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:$packageName")
+                            )
+                            startActivity(intent)
+                        }
+                    }
+                }
+                actionLayout.addView(overlayButton)
+                mainLayout.addView(actionLayout)
+
                 setContentView(mainLayout)
-
                 audioFile = File(externalCacheDir ?: cacheDir, "VoxPrompter_Record.amr")
+            }
 
-                scrollRunnable = object : Runnable {
-                    override fun run() {
-                        scrollerView?.smoothScrollBy(0, 3)
-                        scrollRunnable?.let { mainHandler.postDelayed(it, 40) }
+            private fun pasteFromClipboard() {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                if (clipboard.hasPrimaryClip()) {
+                    val item = clipboard.primaryClip?.getItemAt(0)
+                    val pasteData = item?.text?.toString() ?: ""
+                    if (pasteData.isNotEmpty()) {
+                        prompterInput?.setText(pasteData)
+                        Toast.makeText(this, "تم لصق النص بنجاح!", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(this, "الحافظة فارغة!", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            private fun openFilePicker() {
+                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                    type = "text/plain"
+                    addCategory(Intent.CATEGORY_OPENABLE)
+                }
+                startActivityForResult(Intent.createChooser(intent, "اختر ملف النص"), PICK_TXT_FILE)
+            }
+
+            override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+                super.onActivityResult(requestCode: Int, resultCode: Int, data: Intent?)
+                if (requestCode == PICK_TXT_FILE && resultCode == Activity.RESULT_OK) {
+                    data?.data?.let { uri ->
+                        readTextFromUri(uri)
                     }
                 }
             }
 
+            private fun readTextFromUri(uri: Uri) {
+                try {
+                    contentResolver.openInputStream(uri)?.use { inputStream ->
+                        BufferedReader(InputStreamReader(inputStream)).use { reader ->
+                            val stringBuilder = StringBuilder()
+                            var line: String?
+                            while (reader.readLine().also { line = it } != null) {
+                                stringBuilder.append(line).append("\n")
+                            }
+                            prompterInput?.setText(stringBuilder.toString())
+                            Toast.makeText(this, "تم استيراد الملف النصي بنجاح!", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(this, "فشل في قراءة الملف!", Toast.LENGTH_SHORT).show()
+                }
+            }
+
             private fun stopRecordingAndShare() {
-                scrollRunnable?.let { mainHandler.removeCallbacks(it) }
                 if (isRecording) {
                     try {
                         audioRecorder?.stop()
@@ -410,8 +415,6 @@ jobs:
 
             override fun onResume() {
                 super.onResume()
-                scrollRunnable?.let { mainHandler.postDelayed(it, 1000) }
-                
                 try {
                     audioRecorder = MediaRecorder().apply {
                         setAudioSource(MediaRecorder.AudioSource.MIC)
@@ -429,7 +432,6 @@ jobs:
 
             override fun onPause() {
                 super.onPause()
-                scrollRunnable?.let { mainHandler.removeCallbacks(it) }
                 if (isRecording) {
                     try {
                         audioRecorder?.stop()
