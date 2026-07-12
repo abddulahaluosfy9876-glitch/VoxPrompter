@@ -20,7 +20,7 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Inject Step 3 - Smart Text Auto Scroll Feature Only
+    - name: Inject Step 4 - Smart Voice-Activated Scroll Only
       run: |
         echo "android.useAndroidX=true" > gradle.properties
         rm -rf app/src
@@ -28,7 +28,7 @@ jobs:
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/res/xml
 
-        # 1. ملف الـ AndroidManifest مع أذونات التسجيل وحماية الملفات
+        # 1. المانيفست والأذونات ومشاركة الملفات
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -39,7 +39,7 @@ jobs:
             
             <application
                 android:allowBackup="true"
-                android:label="VoxPrompter Scroll"
+                android:label="VoxPrompter Smart Scroll"
                 android:theme="@android:style/Theme.Black.NoTitleBar">
                 
                 <activity
@@ -80,7 +80,7 @@ jobs:
         </resources>
         EOF
 
-        # 4. الواجهة الرئيسية: ربط محرك التسجيل بمحرك تحريك النص التلقائي
+        # 4. الكود الرئيسي: دمج تحليل شدة الصوت مع حركة التمرير
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -92,176 +92,4 @@ jobs:
         import android.os.Build
         import android.os.Bundle
         import android.os.Handler
-        import android.os.Looper
-        import android.view.Gravity
-        import android.widget.Button
-        import android.widget.EditText
-        import android.widget.LinearLayout
-        import android.widget.ScrollView
-        import android.widget.Toast
-        import androidx.core.content.FileProvider
-        import java.io.File
-
-        class MainActivity : Activity() {
-
-            private var prompterInput: EditText? = null
-            private var textScrollView: ScrollView? = null
-            private var audioRecorder: MediaRecorder? = null
-            private var audioFile: File? = null
-            private var isRecording = false
-            private var actionButton: Button? = null
-
-            // محرك التحريك التلقائي
-            private val scrollHandler = Handler(Looper.getMainLooper())
-            private var scrollRunnable: Runnable? = null
-            private val scrollSpeedPx = 2 // عدد البكسلات للتحرك في كل خطوة (سرعة قراءة طبيعية)
-            private val scrollIntervalMs = 60L // الوقت المستغرق بين كل خطوة تحريك بالملي ثانية
-
-            override fun onCreate(savedInstanceState: Bundle?) {
-                super.onCreate(savedInstanceState)
-
-                val mainLayout = LinearLayout(this).apply {
-                    orientation = LinearLayout.VERTICAL
-                    setBackgroundColor(Color.BLACK)
-                    setPadding(30, 30, 30, 30)
-                }
-
-                // إضافة حاوي التمرير (ScrollView) ليتحرك النص بداخله تلقائياً
-                textScrollView = ScrollView(this).apply {
-                    layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 20 }
-                    isVerticalScrollBarEnabled = true
-                }
-
-                prompterInput = EditText(this).apply {
-                    hint = "اكتب النص المنسق والمتحرك هنا وقصتك الصوتية..."
-                    setHintTextColor(Color.GRAY)
-                    setTextColor(Color.WHITE)
-                    textSize = 22f // تكبير الخط قليلاً لراحة العين أثناء القراءة والتسجيل
-                    gravity = Gravity.TOP or Gravity.START
-                    setBackgroundColor(Color.parseColor("#121212"))
-                    setPadding(25, 25, 25, 800) // حشوة سفلية كبيرة لضمان صعود النص لآخر سطر عند التمرير
-                }
-                
-                textScrollView?.addView(prompterInput)
-                mainLayout.addView(textScrollView)
-
-                actionButton = Button(this).apply {
-                    text = "ابدأ تسجيل الصوت والتحرك التلقائي 🎙️"
-                    setBackgroundColor(Color.parseColor("#00796B"))
-                    setTextColor(Color.WHITE)
-                    textSize = 14f
-                    layoutParams = LinearLayout.LayoutParams(-1, 110)
-                    setOnClickListener { handleAudioAndScrollAction() }
-                }
-                mainLayout.addView(actionButton)
-
-                setContentView(mainLayout)
-
-                audioFile = File(externalCacheDir ?: cacheDir, "VoxAudioRecord.amr")
-                checkAudioPermissions()
-            }
-
-            private fun checkAudioPermissions() {
-                if (Build.VERSION.SDK_INT >= 23) {
-                    if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                        requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 200)
-                    }
-                }
-            }
-
-            private fun handleAudioAndScrollAction() {
-                if (!isRecording) {
-                    try {
-                        // 1. تشغيل مسجل الصوت
-                        audioRecorder = MediaRecorder().apply {
-                            setAudioSource(MediaRecorder.AudioSource.MIC)
-                            setOutputFormat(MediaRecorder.OutputFormat.AMR_NB)
-                            setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-                            setOutputFile(audioFile?.absolutePath)
-                            prepare()
-                            start()
-                        }
-                        isRecording = true
-                        actionButton?.text = "إيقاف ومشاركة الصوت 📤"
-                        actionButton?.setBackgroundColor(Color.parseColor("#C62828"))
-
-                        // 2. تفعيل محرك التحريك التلقائي المتزامن
-                        textScrollView?.scrollTo(0, 0) // البدء من أعلى النص
-                        startAutoScrolling()
-
-                        Toast.makeText(this, "بدأ التسجيل والتحريك التلقائي...", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        Toast.makeText(this, "فشل في تشغيل المحرك الذكي", Toast.LENGTH_SHORT).show()
-                        e.printStackTrace()
-                    }
-                } else {
-                    stopAndShareAudioAndScroll()
-                }
-            }
-
-            private fun startAutoScrolling() {
-                scrollRunnable = object : Runnable {
-                    override fun run() {
-                        if (isRecording) {
-                            textScrollView?.smoothScrollBy(0, scrollSpeedPx)
-                            scrollHandler.postDelayed(this, scrollIntervalMs)
-                        }
-                    }
-                }
-                // تأخير بدء الحركة ثانية واحدة ليعطي المستخدم فرصة للاستعداد بعد ضغط الزر
-                scrollHandler.postDelayed(scrollRunnable!!, 1000)
-            }
-
-            private fun stopAndShareAudioAndScroll() {
-                // 1. إيقاف محرك التحريك
-                scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
-                
-                // 2. إيقاف التسجيل الصوتي
-                try {
-                    audioRecorder?.stop()
-                    audioRecorder?.release()
-                } catch (e: Exception) {}
-                audioRecorder = null
-                isRecording = false
-
-                actionButton?.text = "ابدأ تسجيل الصوت والتحرك التلقائي 🎙️"
-                actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
-
-                // 3. مشاركة الملف
-                if (audioFile != null && audioFile!!.exists()) {
-                    val fileUri = FileProvider.getUriForFile(this, "com.example.voxprompter.fileprovider", audioFile!!)
-                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                        type = "audio/amr"
-                        putExtra(Intent.EXTRA_STREAM, fileUri)
-                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    }
-                    startActivity(Intent.createChooser(shareIntent, "إرسال ومشاركة التسجيل عبر:"))
-                } else {
-                    Toast.makeText(this, "الملف غير موجود", Toast.LENGTH_SHORT).show()
-                }
-            }
-
-            override fun onDestroy() {
-                scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
-                if (isRecording) {
-                    try {
-                        audioRecorder?.stop()
-                        audioRecorder?.release()
-                    } catch (e: Exception) {}
-                }
-                super.onDestroy()
-            }
-        }
-        EOF
-
-    - name: Compile and Force Build Debug APK
-      run: |
-        chmod +x gradlew
-        ./gradlew clean assembleDebug --no-daemon
-
-    - name: Upload Step 3 Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: VoxPrompter-Step3-Scroll-APK
-        path: "app/build/outputs/apk/debug/*.apk"
         
