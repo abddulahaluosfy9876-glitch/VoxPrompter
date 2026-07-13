@@ -32,7 +32,7 @@ import java.nio.ByteOrder
 import java.util.Locale
 import kotlin.math.abs
 
-class MainActivity : Activity(), TextToSpeech.OnInitListener {
+class MainActivity : Activity() {
 
     private var prompterInput: EditText? = null
     private var textScrollView: ScrollView? = null
@@ -61,10 +61,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 1. فرض لون الخلفية السوداء مباشرة على نافذة النظام لكسر الشاشة الرمادية فوراً
+        // فرض الخلفية السوداء مباشرة لحماية الشاشة من الانهيار الرمادي
         window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
 
-        // 2. بناء الواجهة البرمجية بشكل مبسط ومستقر
+        // بناء الواجهة برمجياً بشكل مستقل ونظيف
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
@@ -159,7 +159,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         bottomButtonsLayout.addView(actionButton)
         mainLayout.addView(bottomButtonsLayout)
 
-        // تعيين الواجهة الجاهزة
         setContentView(mainLayout)
     }
 
@@ -179,18 +178,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         checkAndStartRecording()
-    }
-
-    override fun onInit(status: Int) {
-        if (status == TextToSpeech.SUCCESS) {
-            textToSpeech?.setLanguage(Locale("ar"))
-            textToSpeech?.setPitch(1.0f)
-            textToSpeech?.setSpeechRate(0.9f)
-            isTtsInitialized = true
-            startAiVoiceSimulation()
-        } else {
-            Toast.makeText(this, "فشل تهيئة محرك الصوت الذكي", Toast.LENGTH_SHORT).show()
-        }
     }
 
     private fun checkAndStartRecording() {
@@ -220,10 +207,21 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private fun initAndStartTts() {
         if (textToSpeech == null) {
             try {
-                textToSpeech = TextToSpeech(applicationContext, this)
+                // عزل الـ Listener برمجياً لضمان عدم حدوث تعارض أثناء تحميل الكلاس
+                textToSpeech = TextToSpeech(applicationContext) { status ->
+                    if (status == TextToSpeech.SUCCESS) {
+                        textToSpeech?.setLanguage(Locale("ar"))
+                        textToSpeech?.setPitch(1.0f)
+                        textToSpeech?.setSpeechRate(0.9f)
+                        isTtsInitialized = true
+                        startAiVoiceSimulation()
+                    } else {
+                        Toast.makeText(this@MainActivity, "فشل تهيئة محرك الصوت", Toast.LENGTH_SHORT).show()
+                    }
+                }
             } catch (e: Exception) { 
                 e.printStackTrace() 
-                Toast.makeText(this, "خطأ في تهيئة النظام الصوتي", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "خطأ في النظام الصوتي", Toast.LENGTH_SHORT).show()
             }
         } else if (isTtsInitialized) {
             startAiVoiceSimulation()
