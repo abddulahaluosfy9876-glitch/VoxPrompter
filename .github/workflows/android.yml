@@ -20,23 +20,43 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Force Enable AndroidX Everywhere
+    - name: Smart Cleaner & Path Resolver for gradle.properties
       run: |
-        echo "android.useAndroidX=true" > gradle.properties
-        echo "android.enableJetifier=true" >> gradle.properties
-        mkdir -p app
-        echo "android.useAndroidX=true" > app/gradle.properties
-        echo "android.enableJetifier=true" >> app/gradle.properties
+        echo "========================================================"
+        echo "🤖 جاري تشغيل الفاحص والمنظف الذكي لمنع تشتت النظام..."
+        echo "========================================================"
+        
+        # 1. التحقق من الملف المكرر الخاطئ داخل مجلد app وحذفه فوراً
+        if [ -f "app/gradle.properties" ]; then
+          echo "⚠️ تم رصد ملف مكرر خاطئ في مسار: $(pwd)/app/gradle.properties"
+          rm -f app/gradle.properties
+          echo "🗑️ تم حذف الملف المكرر الخاطئ بنجاح لمنع الإرباك والتعارض!"
+        else
+          echo "✨ مجلد app نظيف ولا يحتوي على ملفات مكررة خاطئة."
+        fi
+
+        # 2. التحقق من الملف الصحيح وتثبيته في المجلد الرئيسي
+        if [ -f "gradle.properties" ]; then
+          echo "✅ تم العثور على الملف الصحيح والمثبت!"
+          echo "📍 المسار الرسمي والوحيد المعتمد حالياً هو: $(pwd)/gradle.properties"
+        else
+          echo "💡 لم يتم العثور على الملف في أي مكان، جاري بناؤه في المسار الصحيح المعتمد..."
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          echo "📍 تم تثبيت الملف الجديد بنجاح في المسار المعتمد: $(pwd)/gradle.properties"
+        fi
+        
+        echo "========================================================"
 
     - name: Change Permission for Gradlew
       run: chmod +x gradlew
 
-    - name: Clean and Build Studio APK
+    - name: Clean and Build Stable APK
       run: ./gradlew clean assembleDebug --no-daemon
 
     - name: Upload VoxPrompter APK
       uses: actions/upload-artifact@v4
       with:
-        name: VoxPrompter-MagicVoice-V2
+        name: VoxPrompter-Clean-Build
         path: app/build/outputs/apk/debug/app-debug.apk
         
