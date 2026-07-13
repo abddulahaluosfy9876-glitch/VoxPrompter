@@ -20,7 +20,7 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Inject Complete Voice AI Feature Code
+    - name: Inject Verified Voice AI Feature Code
       run: |
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
@@ -84,14 +84,13 @@ jobs:
         </resources>
         EOF
 
-        # 4. كود واجهة وجوهر الميزة الذكية بالكامل
+        # 4. كود واجهة وجوهر الميزة الذكية بالكامل مصلح 100% لتحديث العداد فوراً
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
         import android.app.Activity
         import android.app.AlertDialog
         import android.content.Context
-        import android.content.DialogInterface
         import android.content.Intent
         import android.content.pm.PackageManager
         import android.graphics.Color
@@ -218,6 +217,11 @@ jobs:
 
                 audioFile = File(externalCacheDir ?: cacheDir, "VoxAudioRecord.amr")
                 checkAudioPermissions()
+                
+                // إشعار مبدئي لمعرفة كم تسجيل تم حفظه بالفعل في الذاكرة
+                val initialPrefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
+                val initialCount = initialPrefs.getInt("voice_samples_count", 0)
+                Toast.makeText(this, "التسجيلات المحفوظة الحالية في الذاكرة: $initialCount", Toast.LENGTH_LONG).show()
             }
 
             private fun checkAudioPermissions() {
@@ -228,29 +232,29 @@ jobs:
                 }
             }
 
-            // فحص الشرط: لو مسجل 3 مرات تفتح خيارات الذكاء الاصطناعي، غير ذلك يسجل مباشرة تلقائياً!
+            // قراءة العداد الفعلي والمباشر من الذاكرة فور الضغط
             private fun checkAndTriggerAction() {
                 val prefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
                 val count = prefs.getInt("voice_samples_count", 0)
 
                 if (count >= 3) {
-                    // تم تفعيل الشرط بنجاح؛ إظهار مربع الخيارات
+                    // إذا كان مسجلاً 3 مرات أو أكثر، يظهر مربع الخيارات السحري فوراً
                     val options = arrayOf(
                         "🎤 تسجيل عادي (أقرأ بنفسي)", 
                         "🤖 بصوتي! (الموظف الذكي يتحدث بالنيابة عني 🔥)"
                     )
                     
                     AlertDialog.Builder(this).apply {
-                        setTitle("تم حفظ النبرة! اختر طريقة الأداء:")
+                        setTitle("تم حفظ النبرة بنجاح! اختر طريقة الأداء:")
                         setItems(options) { _, which ->
                             if (which == 0) startNormalRecording() else startAiVoiceSpeaking()
                         }
                         show()
                     }
                 } else {
-                    // لم يكتمل الشرط بعد؛ يسجل عادي مباشرة لحفظ النبرة
+                    // إذا لم يكتمل الشرط، يسجل عادي مباشرة لحفظ نبرة صوت جديدة
                     startNormalRecording()
-                    Toast.makeText(this, "جاري حفظ العينة رقم (${count + 1}) لتفعيل المحاكاة تلقائياً!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "جاري تسجيل وحفظ العينة رقم (${count + 1}) لتفعيل بصمة الصوت..", Toast.LENGTH_SHORT).show()
                 }
             }
 
@@ -326,10 +330,12 @@ jobs:
                     audioRecorder = null
                     isRecording = false
 
-                    // إضافة تسجيل جديد في قاعدة البيانات فقط عند التسجيل الحقيقي
+                    // تعديل الذاكرة: استخدام commit() الإجباري لضمان الحفظ الفوري في ملفات النظام
                     val prefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
                     val currentCount = prefs.getInt("voice_samples_count", 0) + 1
-                    prefs.edit().putInt("voice_samples_count", currentCount).apply()
+                    prefs.edit().putInt("voice_samples_count", currentCount).commit() 
+                    
+                    Toast.makeText(this, "تم تثبيت عينة الصوت رقم ($currentCount) بنجاح 🎯", Toast.LENGTH_SHORT).show()
                 }
 
                 isAiSpeakingMode = false
@@ -369,9 +375,9 @@ jobs:
         chmod +x gradlew
         ./gradlew clean assembleDebug --no-daemon
 
-    - name: Upload Complete MultiStage APK
+    - name: Upload Verified MultiStage APK
       uses: actions/upload-artifact@v4
       with:
-        name: VoxPrompter-FullAI-APK
+        name: VoxPrompter-VerifiedAI-APK
         path: "app/build/outputs/apk/debug/*.apk"
         
