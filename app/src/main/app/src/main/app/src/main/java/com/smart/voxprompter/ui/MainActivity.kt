@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -60,7 +61,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // بناء الواجهة برمجياً بشكل مستقل تماماً ومتوافق مع ثيم المانيفست الحالي لمنع الشاشة الرمادية
+        // 1. فرض لون الخلفية السوداء مباشرة على نافذة النظام لكسر الشاشة الرمادية فوراً
+        window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
+
+        // 2. بناء الواجهة البرمجية بشكل مبسط ومستقر
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
@@ -106,13 +110,13 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         prompterInput = EditText(this).apply {
-            hint = "اكتب أو الصق قصتك هنا... تم التثبيت الآمن والمعزول 🤖✨"
+            hint = "اكتب أو الصق قصتك هنا... 🤖✨"
             setHintTextColor(Color.GRAY)
             setTextColor(Color.WHITE)
             textSize = 22f
             gravity = Gravity.TOP or Gravity.START
             setBackgroundColor(Color.TRANSPARENT)
-            setPadding(25, 25, 25, 800)
+            setPadding(25, 25, 25, 100)
         }
         textScrollView?.addView(prompterInput)
         mainLayout.addView(textScrollView)
@@ -155,7 +159,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         bottomButtonsLayout.addView(actionButton)
         mainLayout.addView(bottomButtonsLayout)
 
-        // تعيين الواجهة المتوافقة والمحمية من الانهيار فوراً
+        // تعيين الواجهة الجاهزة
         setContentView(mainLayout)
     }
 
@@ -332,7 +336,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private fun shareAudioFile() {
         if (audioFile != null && audioFile!!.exists() && audioFile!!.length() > 44) {
             try {
-                // استخدام مشاركة آمنة متوافقة مع كلاس Activity العادي ودون الحاجة لـ FileProvider مفقود
                 val fileUri = Uri.fromFile(audioFile)
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "audio/wav"
