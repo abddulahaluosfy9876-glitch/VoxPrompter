@@ -1,6 +1,5 @@
 package com.example.voxprompter
 
-import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -22,6 +21,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
@@ -31,7 +31,7 @@ import java.nio.ByteOrder
 import java.util.Locale
 import kotlin.math.abs
 
-class MainActivity : Activity(), TextToSpeech.OnInitListener {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private var prompterInput: EditText? = null
     private var textScrollView: ScrollView? = null
@@ -60,7 +60,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // بناء الواجهة برمجياً بشكل مستقل وآمن تماماً لمنع الشاشة البيضاء
+        // بناء الواجهة برمجياً بشكل متوافق وآمن تماماً لمنع الشاشة الرمادية
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
@@ -155,7 +155,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         bottomButtonsLayout.addView(actionButton)
         mainLayout.addView(bottomButtonsLayout)
 
-        // تعيين الواجهة أولاً لضمان استقرار التطبيق بنسبة 100% عند الفتح
+        // تعيين الواجهة المتوافقة حديثاً
         setContentView(mainLayout)
     }
 
@@ -183,7 +183,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             textToSpeech?.setPitch(1.0f)
             textToSpeech?.setSpeechRate(0.9f)
             isTtsInitialized = true
-            // بدء المحاكاة فور اكتمال التهيئة الآمنة المتأخرة
             startAiVoiceSimulation()
         } else {
             Toast.makeText(this, "فشل تهيئة محرك الصوت الذكي", Toast.LENGTH_SHORT).show()
@@ -217,7 +216,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private fun initAndStartTts() {
         if (textToSpeech == null) {
             try {
-                // تهيئة متأخرة وآمنة تماماً بطلب من المستخدم
                 textToSpeech = TextToSpeech(applicationContext, this)
             } catch (e: Exception) { 
                 e.printStackTrace() 
