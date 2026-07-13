@@ -28,14 +28,14 @@ jobs:
 
       - name: Remove duplicated folder and restore stable files
         run: |
-          # 1. حذف المجلد المكرر الفاسد نهائياً من ساحة العمل
+          # 1. حذف المجلد المكرر الفاسد نهائياً من ساحة العمل لضمان التطهير
           rm -rf app/src/main/app
           
-          # 2. استرجاع كود MainActivity السليم من الكوميت المستقر
-          git checkout 5cec4bc14508d7d749ab0d44c6467e20d7bd37e9 -- app/src/main/java/
+          # 2. استرجاع مجلد app بالكامل إلى حالته السليمة تماماً عند الكوميت المستقر
+          git checkout 5cec4bc14508d7d749ab0d44c6467e20d7bd37e9 -- app
           
-          # 3. حفظ التغييرات ودفعها بشكل طبيعي وآمن دون المساس بملفات الـ workflows
+          # 3. حفظ التغييرات ودفعها بشكل آمن ومستقر
           git add -A
-          git commit -m "Clean project structure and restore stable Java/Kotlin source files" || echo "No changes to commit"
+          git commit -m "Clean project structure and restore stable app module" || echo "No changes to commit"
           git push origin main
           
