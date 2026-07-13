@@ -119,7 +119,6 @@ jobs:
             private var prompterInput: EditText? = null
             private var textScrollView: ScrollView? = null
             
-            // استخدام الـ AudioRecord البديل الاحترافي لالتقاط الصوت الخام (Raw PCM) بدون أي تشويه أو ضغط
             private var audioRecord: AudioRecord? = null
             private var noiseSuppressor: NoiseSuppressor? = null
             private var gainControl: AutomaticGainControl? = null
@@ -133,8 +132,7 @@ jobs:
             private val scrollSpeedPx = 3 
             private val scrollIntervalMs = 50L 
 
-            // إعدادات الصوت بجودة الاستوديو الاحترافية
-            private val sampleRate = 44100 // أعلى تردد لالتقاط الترددات البشرية الكاملة بنقاء
+            private val sampleRate = 44100 
             private val channelConfig = AudioFormat.CHANNEL_IN_MONO
             private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
             private var bufferSize = 0
@@ -257,7 +255,7 @@ jobs:
                     AlertDialog.Builder(this).apply {
                         setTitle("تم حفظ النبرة! اختر النمط المتاح حالياً:")
                         setItems(options) { _, which ->
-                            if (which == 0) startStudioRecording() else Toast.makeText(context, "سيتم ربط المساعد بمحرك المحاكاة في الخطوة القادمة!", Toast.LENGTH_SHORT).show()
+                            if (which == 0) startStudioRecording() else Toast.makeText(context, "سيتم ربط محرك محاكاة النبرة الحقيقية بالذكاء الاصطناعي في الخطوة القادمة مباشرة!", Toast.LENGTH_LONG).show()
                         }
                         show()
                     }
@@ -269,19 +267,16 @@ jobs:
 
             private fun startStudioRecording() {
                 try {
-                    // استخدام الميكروفون المخصص للمكالمات/التعرف الصوتي (VOICE_RECOGNITION) لتهيئة فلاتر الهواتف الذكية بشكل مسبق
                     audioRecord = AudioRecord(
                         MediaRecorder.AudioSource.VOICE_RECOGNITION,
                         sampleRate, channelConfig, audioFormat, bufferSize
                     )
 
-                    // تفعيل ميزة إزالة وعزل الضوضاء المحيطة برمجياً وهاردوير (Noise Suppression)
                     if (NoiseSuppressor.isAvailable()) {
                         noiseSuppressor = NoiseSuppressor.create(audioRecord!!.audioSessionId)
                         noiseSuppressor?.enabled = true
                     }
 
-                    // تفعيل ميزة التحكم التلقائي بالصوت لمنع التشويش والفرقعة (Automatic Gain Control)
                     if (AutomaticGainControl.isAvailable()) {
                         gainControl = AutomaticGainControl.create(audioRecord!!.audioSessionId)
                         gainControl?.enabled = true
@@ -295,7 +290,6 @@ jobs:
                     textScrollView?.scrollTo(0, 0)
                     startSmartScrolling()
 
-                    // تشغيل ميكانيكية الكتابة إلى ملف WAV بصوت خام غير مشوه
                     recordingThread = Thread({ writeAudioDataToFile() }, "AudioRecord Thread")
                     recordingThread?.start()
 
@@ -310,7 +304,6 @@ jobs:
                 var os: FileOutputStream? = null
                 try {
                     os = FileOutputStream(audioFile)
-                    // كتابة ترويسة أولية للملف، سنقوم بتحديثها عند الإغلاق لتتوافق مع معيار WAV
                     writeWavHeader(os, 0, 0, sampleRate, 1, 16)
                     
                     while (isRecording) {
@@ -363,10 +356,8 @@ jobs:
                 actionButton?.text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
                 actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
 
-                // تحديث حجم ترويسة ملف الـ WAV بعد توقف التسجيل ليصبح صالحاً للتشغيل الفوري بنقاء استوديو
                 updateWavHeader(audioFile)
 
-                // زيادة العداد لتفعيل ميزة البصمة الذكية
                 val prefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
                 val currentCount = prefs.getInt("voice_samples_count", 0) + 1
                 prefs.edit().putInt("voice_samples_count", currentCount).commit()
@@ -382,7 +373,6 @@ jobs:
                 }
             }
 
-            // كتابة ترويسة ملف الـ WAV القياسية للحفاظ على الجودة
             private fun writeWavHeader(os: FileOutputStream, totalAudioLen: Long, totalDataLen: Long, longSampleRate: Int, channels: Int, bitsPerSample: Int) {
                 val header = ByteArray(44)
                 val byteRate = (longSampleRate * channels * bitsPerSample / 8).toLong()
@@ -427,7 +417,9 @@ jobs:
         chmod +x gradlew
         ./gradlew clean assembleDebug --no-daemon
 
-    - name: Upload High Quality Audio APK
+    - name: Upload Studio Audio APK
       uses: actions/upload-artifact@v4
       with:
+        name: VoxPrompter-StudioAudio-APK
+        path: "app/build/outputs/apk/debug/*.apk"
         
