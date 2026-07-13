@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.Gravity
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -21,20 +22,28 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // فرض الخلفية السوداء مباشرة
+        // فرض لون النافذة الأسود
         window.setBackgroundDrawable(ColorDrawable(Color.BLACK))
 
-        // بناء الواجهة برمجياً بشكل مبسط وخفيف جداً
+        // إعداد الحاوية الرئيسية بأبعاد صريحة ومضمونة
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
             setPadding(30, 30, 30, 30)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
         }
 
+        // الحاوية العلوية للأزرار
         val topButtonsLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             weightSum = 2f
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 130).apply { bottomMargin = 15 }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 
+                140
+            ).apply { bottomMargin = 15 }
         }
 
         val importBtn = Button(this).apply {
@@ -56,27 +65,40 @@ class MainActivity : Activity() {
         topButtonsLayout.addView(pasteBtn)
         mainLayout.addView(topButtonsLayout)
 
+        // إعداد مساحة العرض المنزلقة
         textScrollView = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f).apply { bottomMargin = 20 }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 
+                0, 
+                1f
+            ).apply { bottomMargin = 20 }
             setBackgroundColor(Color.parseColor("#121212"))
         }
 
         prompterInput = EditText(this).apply {
-            hint = "مرحباً بك في VoxPrompter المستقر! اكتب أو الصق نصك هنا... 🤖✨"
+            hint = "مرحباً بك في VoxPrompter! اكتب أو الصق نصك هنا... 🤖✨"
             setHintTextColor(Color.GRAY)
             setTextColor(Color.WHITE)
             textSize = 22f
             gravity = Gravity.TOP or Gravity.START
             setBackgroundColor(Color.TRANSPARENT)
             setPadding(25, 25, 25, 100)
+            layoutParams = ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT
+            )
         }
         textScrollView?.addView(prompterInput)
         mainLayout.addView(textScrollView)
 
+        // الحاوية السفلية للأزرار
         val bottomButtonsLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             weightSum = 4f
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 140)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 
+                150
+            )
         }
 
         val resetBtn = Button(this).apply {
@@ -110,6 +132,7 @@ class MainActivity : Activity() {
         bottomButtonsLayout.addView(actionButton)
         mainLayout.addView(bottomButtonsLayout)
 
+        // تعيين الواجهة المحمية بأبعادها الصريحة
         setContentView(mainLayout)
     }
 }
