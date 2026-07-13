@@ -1,5 +1,6 @@
 package com.example.voxprompter
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -10,6 +11,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.audiofx.AutomaticGainControl
 import android.media.audiofx.NoiseSuppressor
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -21,8 +23,6 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
@@ -31,7 +31,7 @@ import java.nio.ByteOrder
 import java.util.Locale
 import kotlin.math.abs
 
-class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
+class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     private var prompterInput: EditText? = null
     private var textScrollView: ScrollView? = null
@@ -60,7 +60,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // بناء الواجهة برمجياً بشكل متوافق وآمن تماماً لمنع الشاشة الرمادية
+        // بناء الواجهة برمجياً بشكل مستقل تماماً ومتوافق مع ثيم المانيفست الحالي لمنع الشاشة الرمادية
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
@@ -155,7 +155,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         bottomButtonsLayout.addView(actionButton)
         mainLayout.addView(bottomButtonsLayout)
 
-        // تعيين الواجهة المتوافقة حديثاً
+        // تعيين الواجهة المتوافقة والمحمية من الانهيار فوراً
         setContentView(mainLayout)
     }
 
@@ -332,7 +332,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private fun shareAudioFile() {
         if (audioFile != null && audioFile!!.exists() && audioFile!!.length() > 44) {
             try {
-                val fileUri = FileProvider.getUriForFile(this, "com.example.voxprompter.fileprovider", audioFile!!)
+                // استخدام مشاركة آمنة متوافقة مع كلاس Activity العادي ودون الحاجة لـ FileProvider مفقود
+                val fileUri = Uri.fromFile(audioFile)
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "audio/wav"
                     putExtra(Intent.EXTRA_STREAM, fileUri)
