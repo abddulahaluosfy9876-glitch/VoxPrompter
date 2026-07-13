@@ -127,7 +127,6 @@ jobs:
             private var isRecording = false
             private var actionButton: Button? = null
 
-            // محرك المحاكاة الصوتية بالذكاء الاصطناعي
             private var textToSpeech: TextToSpeech? = null
             private var isTtsInitialized = false
 
@@ -147,7 +146,6 @@ jobs:
                 super.onCreate(savedInstanceState)
                 bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
 
-                // تهيئة محرك محاكاة الذكاء الاصطناعي محلياً
                 textToSpeech = TextToSpeech(this, this)
 
                 val mainLayout = LinearLayout(this).apply {
@@ -252,7 +250,6 @@ jobs:
                     if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
                         textToSpeech?.setLanguage(Locale.US)
                     }
-                    // ضبط سرعة النطق ونبرة الصوت لتكون احترافية ومحاكية
                     textToSpeech?.setPitch(1.0f)
                     textToSpeech?.setSpeechRate(0.9f)
                     isTtsInitialized = true
@@ -293,7 +290,6 @@ jobs:
                 }
             }
 
-            // تشغيل محرك المحاكاة بالذكاء الاصطناعي مع التحرك التلقائي للملقن
             private fun startAiVoiceSimulation() {
                 val textToRead = prompterInput?.text?.toString() ?: ""
                 if (textToRead.trim().isEmpty()) {
@@ -304,13 +300,8 @@ jobs:
                 if (isTtsInitialized) {
                     actionButton?.text = "إيقاف المحاكاة الصوتية الذكية 🤖"
                     actionButton?.setBackgroundColor(Color.parseColor("#7B1FA2"))
-                    
                     textScrollView?.scrollTo(0, 0)
-                    
-                    // نطق النص ذكياً
                     textToSpeech?.speak(textToRead, TextToSpeech.QUEUE_FLUSH, null, "VoxAiSpeech")
-                    
-                    // تحريك النص تزامناً مع النطق الذكي
                     isRecording = true 
                     startSmartScrolling()
                 } else {
@@ -387,8 +378,6 @@ jobs:
                             val totalHeight = prompterInput?.height ?: 0
                             val scrollY = textScrollView?.scrollY ?: 0
                             val scrollViewHeight = textScrollView?.height ?: 0
-                            
-                            // التحقق من نهاية النص أو توقف الـ TTS
                             if (scrollY + scrollViewHeight >= totalHeight - 50 || (textToSpeech?.isSpeaking == false && audioRecord == null)) {
                                 stopRecordingAndShare()
                                 return
@@ -403,11 +392,9 @@ jobs:
             private fun stopRecordingAndShare() {
                 isRecording = false
                 scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
-                
                 if (textToSpeech?.isSpeaking == true) {
                     textToSpeech?.stop()
                 }
-
                 try {
                     audioRecord?.stop()
                     audioRecord?.release()
@@ -443,4 +430,9 @@ jobs:
                 val byteRate = (longSampleRate * channels * bitsPerSample / 8).toLong()
                 header[0] = 'R'.toByte(); header[1] = 'I'.toByte(); header[2] = 'F'.toByte(); header[3] = 'F'.toByte()
                 header[4] = (totalDataLen and 0xff).toByte(); header[5] = (totalDataLen shr 8 and 0xff).toByte(); header[6] = (totalDataLen shr 16 and 0xff).toByte(); header[7] = (totalDataLen shr 24 and 0xff).toByte()
-   
+                header[8] = 'W'.toByte(); header[9] = 'A'.toByte(); header[10] = 'V'.toByte(); header[11] = 'E'.toByte()
+                header[12] = 'f'.toByte(); header[13] = 'm'.toByte(); header[14] = 't'.toByte(); header[15] = ' '.toByte()
+                header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0
+                header[20] = 1; header[21] = 0
+                header[22] = channels.toByte(); header[23] = 0
+                header[24] = (longSampleRate and 0xff).toByte(); header[25] = (longSampleRate shr 8 and 0xff).
