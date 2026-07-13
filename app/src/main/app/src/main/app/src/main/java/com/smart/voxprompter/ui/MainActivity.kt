@@ -60,7 +60,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // بناء الواجهة برمجياً لضمان الاستقرار التام على أي ثيم للمستودع
+        // بناء الواجهة برمجياً بشكل مستقل وآمن تماماً لمنع الشاشة البيضاء
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
@@ -106,7 +106,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         }
 
         prompterInput = EditText(this).apply {
-            hint = "اكتب أو الصق قصتك هنا... تم التحديث والتثبيت الآمن 🤖✨"
+            hint = "اكتب أو الصق قصتك هنا... تم التثبيت الآمن والمعزول 🤖✨"
             setHintTextColor(Color.GRAY)
             setTextColor(Color.WHITE)
             textSize = 22f
@@ -155,6 +155,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         bottomButtonsLayout.addView(actionButton)
         mainLayout.addView(bottomButtonsLayout)
 
+        // تعيين الواجهة أولاً لضمان استقرار التطبيق بنسبة 100% عند الفتح
         setContentView(mainLayout)
     }
 
@@ -172,11 +173,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         if (audioFile == null) {
             audioFile = File(externalCacheDir ?: cacheDir, "VoxStudioRecord.wav")
         }
-        if (textToSpeech == null) {
-            try {
-                textToSpeech = TextToSpeech(applicationContext, this)
-            } catch (e: Exception) { e.printStackTrace() }
-        }
 
         checkAndStartRecording()
     }
@@ -187,6 +183,10 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             textToSpeech?.setPitch(1.0f)
             textToSpeech?.setSpeechRate(0.9f)
             isTtsInitialized = true
+            // بدء المحاكاة فور اكتمال التهيئة الآمنة المتأخرة
+            startAiVoiceSimulation()
+        } else {
+            Toast.makeText(this, "فشل تهيئة محرك الصوت الذكي", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -202,7 +202,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             AlertDialog.Builder(this).apply {
                 setTitle("تم حفظ النبرة! اختر طريقة الأداء:")
                 setItems(options) { _, which ->
-                    if (which == 0) startStudioRecording() else startAiVoiceSimulation()
+                    if (which == 0) startStudioRecording() else initAndStartTts()
                 }
                 show()
             }
@@ -211,6 +211,20 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             val newCount = count + 1
             prefs.edit().putInt("voice_samples_count", newCount).apply()
             Toast.makeText(this, "جاري حفظ بصمتك المعزولة، العينة رقم ($newCount) من 3", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun initAndStartTts() {
+        if (textToSpeech == null) {
+            try {
+                // تهيئة متأخرة وآمنة تماماً بطلب من المستخدم
+                textToSpeech = TextToSpeech(applicationContext, this)
+            } catch (e: Exception) { 
+                e.printStackTrace() 
+                Toast.makeText(this, "خطأ في تهيئة النظام الصوتي", Toast.LENGTH_SHORT).show()
+            }
+        } else if (isTtsInitialized) {
+            startAiVoiceSimulation()
         }
     }
 
@@ -228,8 +242,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             textToSpeech?.speak(textToRead, TextToSpeech.QUEUE_FLUSH, null, "VoxAiSpeech")
             isRecording = true 
             startSmartScrolling()
-        } else {
-            Toast.makeText(this, "محرك محاكاة النبرة جاري تهيئته، أعد الضغط خلال ثوانٍ!", Toast.LENGTH_SHORT).show()
         }
     }
 
