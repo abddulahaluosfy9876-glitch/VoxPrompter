@@ -20,32 +20,29 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Inject Pro Noise Gate Recording Code
+    - name: Setup Project Structure
       run: |
         rm -rf app/src
         mkdir -p app/src/main/java/com/example/voxprompter
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/res/xml
-
         echo "android.useAndroidX=true" > gradle.properties
         echo "android.enableJetifier=true" >> gradle.properties
         echo "android.useAndroidX=true" > app/gradle.properties
         echo "android.enableJetifier=true" >> app/gradle.properties
 
-        # 1. المانيفست الرسمي
+    - name: Create Android Manifest
+      run: |
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android"
             package="com.example.voxprompter">
-            
             <uses-permission android:name="android.permission.RECORD_AUDIO" />
             <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
-            
             <application
                 android:allowBackup="true"
                 android:label="VoxPrompter AI"
                 android:theme="@android:style/Theme.Black.NoTitleBar">
-                
                 <activity
                     android:name="com.example.voxprompter.MainActivity"
                     android:exported="true">
@@ -54,7 +51,6 @@ jobs:
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
                 </activity>
-
                 <provider
                     android:name="androidx.core.content.FileProvider"
                     android:authorities="com.example.voxprompter.fileprovider"
@@ -68,7 +64,8 @@ jobs:
         </manifest>
         EOF
 
-        # 2. مسارات حفظ ومشاركة الملفات
+    - name: Create Resource Files
+      run: |
         cat << 'EOF' > app/src/main/res/xml/file_paths.xml
         <?xml version="1.0" encoding="utf-8"?>
         <paths>
@@ -76,15 +73,15 @@ jobs:
             <cache-path name="internal_cache" path="." />
         </paths>
         EOF
-
-        # 3. ملف النصوص العامة
+        
         cat << 'EOF' > app/src/main/res/values/strings.xml
         <resources>
             <string name="app_name">VoxPrompter</string>
         </resources>
         EOF
 
-        # 4. كود واجهة التطبيق مع نظام التصفية والعزل الرقمي المتقدم
+    - name: Create MainActivity Code
+      run: |
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
 
@@ -121,11 +118,9 @@ jobs:
 
             private var prompterInput: EditText? = null
             private var textScrollView: ScrollView? = null
-            
             private var audioRecord: AudioRecord? = null
             private var noiseSuppressor: NoiseSuppressor? = null
             private var gainControl: AutomaticGainControl? = null
-            
             private var audioFile: File? = null
             private var isRecording = false
             private var actionButton: Button? = null
@@ -140,12 +135,10 @@ jobs:
             private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
             private var bufferSize = 0
             private var recordingThread: Thread? = null
-
             private val noiseGateThreshold = 1200 
 
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
-
                 bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
 
                 val mainLayout = LinearLayout(this).apply {
@@ -193,7 +186,6 @@ jobs:
                     setBackgroundColor(Color.parseColor("#121212"))
                     setPadding(25, 25, 25, 800)
                 }
-                
                 textScrollView?.addView(prompterInput)
                 mainLayout.addView(textScrollView)
 
@@ -223,18 +215,13 @@ jobs:
                     textSize = 13f
                     layoutParams = LinearLayout.LayoutParams(0, -1, 3f)
                     setOnClickListener { 
-                        if (isRecording) {
-                            stopRecordingAndShare()
-                        } else {
-                            checkAndStartRecording()
-                        }
+                        if (isRecording) stopRecordingAndShare() else checkAndStartRecording()
                     }
                 }
                 bottomButtonsLayout.addView(actionButton)
                 mainLayout.addView(bottomButtonsLayout)
 
                 setContentView(mainLayout)
-
                 audioFile = File(externalCacheDir ?: cacheDir, "VoxStudioRecord.wav")
                 checkAudioPermissions()
             }
@@ -256,7 +243,6 @@ jobs:
                         "🎤 تسجيل فائق النقاء والعزل (بصوتي الحقيقي)", 
                         "🤖 المساعد الذكي (قيد التجهيز للمرحلة التالية)"
                     )
-                    
                     AlertDialog.Builder(this).apply {
                         setTitle("تم حفظ النبرة! اختر النمط المتاح حالياً:")
                         setItems(options) { _, which ->
@@ -281,7 +267,6 @@ jobs:
                         noiseSuppressor = NoiseSuppressor.create(audioRecord!!.audioSessionId)
                         noiseSuppressor?.enabled = true
                     }
-
                     if (AutomaticGainControl.isAvailable()) {
                         gainControl = AutomaticGainControl.create(audioRecord!!.audioSessionId)
                         gainControl?.enabled = true
@@ -297,7 +282,6 @@ jobs:
 
                     recordingThread = Thread({ writeAudioDataWithHighNoiseGate() }, "AudioRecord Thread")
                     recordingThread?.start()
-
                 } catch (e: Exception) {
                     e.printStackTrace()
                     Toast.makeText(this, "فشل بدء التسجيل بجودة عالية", Toast.LENGTH_SHORT).show()
@@ -310,28 +294,19 @@ jobs:
                 try {
                     os = FileOutputStream(audioFile)
                     writeWavHeader(os, 0, 0, sampleRate, 1, 16)
-                    
                     while (isRecording) {
                         val read = audioRecord?.read(data, 0, bufferSize) ?: 0
                         if (AudioRecord.ERROR_INVALID_OPERATION != read && AudioRecord.ERROR_BAD_VALUE != read && read > 0) {
-                            
                             val shorts = ShortArray(read / 2)
                             ByteBuffer.wrap(data, 0, read).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
-                            
                             var maxAmplitude = 0
                             for (i in shorts.indices) {
                                 val absVal = abs(shorts[i].toInt())
-                                if (absVal > maxAmplitude) {
-                                    maxAmplitude = absVal
-                                }
+                                if (absVal > maxAmplitude) maxAmplitude = absVal
                             }
-                            
                             if (maxAmplitude < noiseGateThreshold) {
-                                for (i in 0 until read) {
-                                    data[i] = 0
-                                }
+                                for (i in 0 until read) data[i] = 0
                             }
-                            
                             os.write(data, 0, read)
                         }
                     }
@@ -347,11 +322,9 @@ jobs:
                     override fun run() {
                         if (isRecording) {
                             textScrollView?.smoothScrollBy(0, scrollSpeedPx)
-                            
                             val totalHeight = prompterInput?.height ?: 0
                             val scrollY = textScrollView?.scrollY ?: 0
                             val scrollViewHeight = textScrollView?.height ?: 0
-                            
                             if (scrollY + scrollViewHeight >= totalHeight - 50) {
                                 stopRecordingAndShare()
                                 return
@@ -366,13 +339,11 @@ jobs:
             private fun stopRecordingAndShare() {
                 isRecording = false
                 scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
-
                 try {
                     audioRecord?.stop()
                     audioRecord?.release()
                 } catch (e: Exception) {}
                 audioRecord = null
-                
                 noiseSuppressor?.release()
                 gainControl?.release()
 
@@ -435,5 +406,14 @@ jobs:
         }
         EOF
 
-    # الخطوة المصححة والمضمونة لإنتاج ملف الـ APK الفعلي ورفعه
-    - name: Compile and Force Build Debu
+    - name: Compile and Force Build Debug APK
+      run: |
+        chmod +x gradlew
+        ./gradlew assembleDebug --no-daemon
+
+    - name: Upload VoxPrompter APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: VoxPrompter-Final-APK
+        path: app/build/outputs/apk/debug/app-debug.apk
+        
