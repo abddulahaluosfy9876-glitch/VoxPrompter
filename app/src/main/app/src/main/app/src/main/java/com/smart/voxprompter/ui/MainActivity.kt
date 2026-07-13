@@ -3,7 +3,6 @@ package com.example.voxprompter
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.media.AudioFormat
@@ -22,7 +21,6 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
-import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
@@ -64,7 +62,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
             if (bufferSize <= 0) bufferSize = 4096
 
-            // تهيئة آمنة لمحرك محاكاة الذكاء الاصطناعي
+            // تهيئة آمنة جداً لمنع الانهيار فور تشغيل التطبيق
             try {
                 textToSpeech = TextToSpeech(applicationContext, this)
             } catch (e: Exception) {
@@ -150,10 +148,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                 setOnClickListener { 
                     if (isRecording) {
                         stopRecordingAndShare()
-                    } else if (textToSpeech?.isSpeaking == true) {
-                        textToSpeech?.stop()
-                        actionButton?.text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
-                        actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
                     } else {
                         checkAndStartRecording()
                     }
@@ -169,7 +163,6 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "حدث خطأ أثناء تشغيل التطبيق", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -215,14 +208,16 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             }
         } else {
             startStudioRecording()
-            Toast.makeText(this, "جاري حفظ بصمتك المعزولة، العينة رقم (${count + 1}) من 3", Toast.LENGTH_SHORT).show()
+            val newCount = count + 1
+            prefs.edit().putInt("voice_samples_count", newCount).apply()
+            Toast.makeText(this, "جاري حفظ بصمتك المعزولة، العينة رقم ($newCount) من 3", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun startAiVoiceSimulation() {
         val textToRead = prompterInput?.text?.toString() ?: ""
         if (textToRead.trim().isEmpty()) {
-            Toast.makeText(this, "الرجاء كتابة أو لصق نص أولاً لتوليده بالذكاء الاصطناعي!", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, "الرجاء كتابة أو لصق نص أولاً لتوليده!", Toast.LENGTH_LONG).show()
             return
         }
 
@@ -234,7 +229,7 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             isRecording = true 
             startSmartScrolling()
         } else {
-            Toast.makeText(this, "محرك محاكاة النبرة جاري تهيئته، حاول مجدداً خلال ثوانٍ!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "محرك محاكاة النبرة جاري تهيئته، حاول مجدداً!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -292,11 +287,121 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
                     os.write(data, 0, read)
                 }
             }
+            os.close()
         } catch (e: Exception) {
             e.printStackTrace()
-        }_
+        }
+    }
 
----
+    private fun stopRecordingAndShare() {
+        isRecording = false
+        stopSmartScrolling()
+        
+        if (textToSpeech?.isSpeaking == true) {
+            textToSpeech?.stop()
+        }
 
-بعد حفظ التحديث، سيقوم GitHub Actions بإعادة بناء التطبيق تلقائياً وتصدير نسخة APK جديدة مستقرة وتفتح بدون أي انهيار. ثبّتها وأخبرني بالنتيجة!
-                
+        try {
+            audioRecord?.stop()
+            audioRecord?.release()
+            audioRecord = null
+            noiseSuppressor?.release()
+            gainControl?.release()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        actionButton?.text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
+        actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
+        
+        updateWavHeader(audioFile)
+        Toast.makeText(this, "تم حفظ معالجة الصوت بنجاح!", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun startSmartScrolling() {
+        scrollRunnable = object : Runnable {
+            override fun run() {
+                if (isRecording) {
+                    textScrollView?.smoothScrollBy(0, scrollSpeedPx)
+                    scrollHandler.postDelayed(this, scrollIntervalMs)
+                }
+            }
+        }
+        scrollHandler.post(scrollRunnable!!)
+    }
+
+    private fun stopSmartScrolling() {
+        scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
+    }
+
+    private fun writeWavHeader(os: FileOutputStream, totalAudioLen: Long, totalDataLen: Long, longSampleRate: Int, channels: Int, byteRate: Int) {
+        val header = ByteArray(44)
+        header[0] = 'R'.toByte()
+        header[1] = 'I'.toByte()
+        header[2] = 'F'.toByte()
+        header[3] = 'F'.toByte()
+        header[4] = (totalDataLen and 0xff).toByte()
+        header[5] = (totalDataLen shr 8 and 0xff).toByte()
+        header[6] = (totalDataLen shr 16 and 0xff).toByte()
+        header[7] = (totalDataLen shr 24 and 0xff).toByte()
+        header[8] = 'W'.toByte()
+        header[9] = 'A'.toByte()
+        header[10] = 'V'.toByte()
+        header[11] = 'E'.toByte()
+        header[12] = 'f'.toByte()
+        header[13] = 'm'.toByte()
+        header[14] = 't'.toByte()
+        header[15] = ' '.toByte()
+        header[16] = 16
+        header[17] = 0
+        header[18] = 0
+        header[19] = 0
+        header[20] = 1
+        header[21] = 0
+        header[22] = channels.toByte()
+        header[23] = 0
+        header[24] = (longSampleRate and 0xff).toByte()
+        header[25] = (longSampleRate shr 8 and 0xff).toByte()
+        header[26] = (longSampleRate shr 16 and 0xff).toByte()
+        header[27] = (longSampleRate shr 24 and 0xff).toByte()
+        header[28] = (longSampleRate * channels * byteRate / 8 and 0xff).toByte()
+        header[29] = (longSampleRate * channels * byteRate / 8 shr 8 and 0xff).toByte()
+        header[30] = (longSampleRate * channels * byteRate / 8 shr 16 and 0xff).toByte()
+        header[31] = (longSampleRate * channels * byteRate / 8 shr 24 and 0xff).toByte()
+        header[32] = (channels * byteRate / 8).toByte()
+        header[33] = 0
+        header[34] = byteRate.toByte()
+        header[35] = 0
+        header[36] = 'd'.toByte()
+        header[37] = 'a'.toByte()
+        header[38] = 't'.toByte()
+        header[39] = 'a'.toByte()
+        header[40] = (totalAudioLen and 0xff).toByte()
+        header[41] = (totalAudioLen shr 8 and 0xff).toByte()
+        header[42] = (totalAudioLen shr 16 and 0xff).toByte()
+        header[43] = (totalAudioLen shr 24 and 0xff).toByte()
+        os.write(header, 0, 44)
+    }
+
+    private fun updateWavHeader(file: File?) {
+        if (file == null || !file.exists()) return
+        try {
+            val raf = RandomAccessFile(file, "rw")
+            val totalAudioLen = raf.length() - 44
+            val totalDataLen = totalAudioLen + 36
+            raf.seek(4)
+            raf.write(ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(totalDataLen.toInt()).array())
+            raf.seek(40)
+            raf.write(ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(totalAudioLen.toInt()).array())
+            raf.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        textToSpeech?.shutdown()
+    }
+}
+
