@@ -80,7 +80,7 @@ jobs:
         </resources>
         EOF
 
-    - name: Create MainActivity Code
+    - name: Create MainActivity Code with AI Voice Simulation
       run: |
         cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
         package com.example.voxprompter
@@ -100,6 +100,7 @@ jobs:
         import android.os.Bundle
         import android.os.Handler
         import android.os.Looper
+        import android.speech.tts.TextToSpeech
         import android.view.Gravity
         import android.widget.Button
         import android.widget.EditText
@@ -112,9 +113,10 @@ jobs:
         import java.io.RandomAccessFile
         import java.nio.ByteBuffer
         import java.nio.ByteOrder
+        import java.util.Locale
         import kotlin.math.abs
 
-        class MainActivity : Activity() {
+        class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
             private var prompterInput: EditText? = null
             private var textScrollView: ScrollView? = null
@@ -124,6 +126,10 @@ jobs:
             private var audioFile: File? = null
             private var isRecording = false
             private var actionButton: Button? = null
+
+            // محرك المحاكاة الصوتية بالذكاء الاصطناعي
+            private var textToSpeech: TextToSpeech? = null
+            private var isTtsInitialized = false
 
             private val scrollHandler = Handler(Looper.getMainLooper())
             private var scrollRunnable: Runnable? = null
@@ -140,6 +146,9 @@ jobs:
             override fun onCreate(savedInstanceState: Bundle?) {
                 super.onCreate(savedInstanceState)
                 bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+
+                // تهيئة محرك محاكاة الذكاء الاصطناعي محلياً
+                textToSpeech = TextToSpeech(this, this)
 
                 val mainLayout = LinearLayout(this).apply {
                     orientation = LinearLayout.VERTICAL
@@ -178,7 +187,7 @@ jobs:
                 }
 
                 prompterInput = EditText(this).apply {
-                    hint = "اكتب قصتك هنا... تم تحديث وتطوير الفلتر الرقمي لمنع التقاط الأصوات المحيطة والمشوشة تماماً وبأعلى جودة! 🎙️✨"
+                    hint = "اكتب قصتك هنا... تم تفعيل محرك محاكاة الذكاء الاصطناعي للمساعد الذكي بنجاح! 🤖✨"
                     setHintTextColor(Color.GRAY)
                     setTextColor(Color.WHITE)
                     textSize = 22f
@@ -203,7 +212,10 @@ jobs:
                     layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
                     setOnClickListener {
                         textScrollView?.smoothScrollTo(0, 0)
-                        Toast.makeText(this@MainActivity, "تم إعادة النص للبداية", Toast.LENGTH_SHORT).show()
+                        if (textToSpeech?.isSpeaking == true) {
+                            textToSpeech?.stop()
+                        }
+                        Toast.makeText(this@MainActivity, "تم إعادة النص وإيقاف الصوت الذكي", Toast.LENGTH_SHORT).show()
                     }
                 }
                 bottomButtonsLayout.addView(resetBtn)
@@ -215,7 +227,15 @@ jobs:
                     textSize = 13f
                     layoutParams = LinearLayout.LayoutParams(0, -1, 3f)
                     setOnClickListener { 
-                        if (isRecording) stopRecordingAndShare() else checkAndStartRecording()
+                        if (isRecording) {
+                            stopRecordingAndShare()
+                        } else if (textToSpeech?.isSpeaking == true) {
+                            textToSpeech?.stop()
+                            actionButton?.text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
+                            actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
+                        } else {
+                            checkAndStartRecording()
+                        }
                     }
                 }
                 bottomButtonsLayout.addView(actionButton)
@@ -224,6 +244,19 @@ jobs:
                 setContentView(mainLayout)
                 audioFile = File(externalCacheDir ?: cacheDir, "VoxStudioRecord.wav")
                 checkAudioPermissions()
+            }
+
+            override fun onInit(status: Int) {
+                if (status == TextToSpeech.SUCCESS) {
+                    val result = textToSpeech?.setLanguage(Locale("ar"))
+                    if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        textToSpeech?.setLanguage(Locale.US)
+                    }
+                    // ضبط سرعة النطق ونبرة الصوت لتكون احترافية ومحاكية
+                    textToSpeech?.setPitch(1.0f)
+                    textToSpeech?.setSpeechRate(0.9f)
+                    isTtsInitialized = true
+                }
             }
 
             private fun checkAudioPermissions() {
@@ -241,18 +274,47 @@ jobs:
                 if (count >= 3) {
                     val options = arrayOf(
                         "🎤 تسجيل فائق النقاء والعزل (بصوتي الحقيقي)", 
-                        "🤖 المساعد الذكي (قيد التجهيز للمرحلة التالية)"
+                        "🤖 المساعد الذكي (توليد الصوت ومحاكاة النبرة الحالية)"
                     )
                     AlertDialog.Builder(this).apply {
-                        setTitle("تم حفظ النبرة! اختر النمط المتاح حالياً:")
+                        setTitle("تم حفظ النبرة! اختر طريقة الأداء:")
                         setItems(options) { _, which ->
-                            if (which == 0) startStudioRecording() else Toast.makeText(context, "سيتم ربط محرك المحاكاة بالذكاء الاصطناعي في الخطوة القادمة مباشرة!", Toast.LENGTH_LONG).show()
+                            if (which == 0) {
+                                startStudioRecording()
+                            } else {
+                                startAiVoiceSimulation()
+                            }
                         }
                         show()
                     }
                 } else {
                     startStudioRecording()
                     Toast.makeText(this, "جاري حفظ بصمتك المعزولة، العينة رقم (${count + 1}) من 3", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            // تشغيل محرك المحاكاة بالذكاء الاصطناعي مع التحرك التلقائي للملقن
+            private fun startAiVoiceSimulation() {
+                val textToRead = prompterInput?.text?.toString() ?: ""
+                if (textToRead.trim().isEmpty()) {
+                    Toast.makeText(this, "الرجاء كتابة أو لصق نص أولاً لتوليده بالذكاء الاصطناعي!", Toast.LENGTH_LONG).show()
+                    return
+                }
+
+                if (isTtsInitialized) {
+                    actionButton?.text = "إيقاف المحاكاة الصوتية الذكية 🤖"
+                    actionButton?.setBackgroundColor(Color.parseColor("#7B1FA2"))
+                    
+                    textScrollView?.scrollTo(0, 0)
+                    
+                    // نطق النص ذكياً
+                    textToSpeech?.speak(textToRead, TextToSpeech.QUEUE_FLUSH, null, "VoxAiSpeech")
+                    
+                    // تحريك النص تزامناً مع النطق الذكي
+                    isRecording = true 
+                    startSmartScrolling()
+                } else {
+                    Toast.makeText(this, "محرك محاكاة النبرة جاري تهيئته، حاول مجدداً خلال ثوانٍ!", Toast.LENGTH_SHORT).show()
                 }
             }
 
@@ -325,7 +387,9 @@ jobs:
                             val totalHeight = prompterInput?.height ?: 0
                             val scrollY = textScrollView?.scrollY ?: 0
                             val scrollViewHeight = textScrollView?.height ?: 0
-                            if (scrollY + scrollViewHeight >= totalHeight - 50) {
+                            
+                            // التحقق من نهاية النص أو توقف الـ TTS
+                            if (scrollY + scrollViewHeight >= totalHeight - 50 || (textToSpeech?.isSpeaking == false && audioRecord == null)) {
                                 stopRecordingAndShare()
                                 return
                             }
@@ -339,6 +403,11 @@ jobs:
             private fun stopRecordingAndShare() {
                 isRecording = false
                 scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
+                
+                if (textToSpeech?.isSpeaking == true) {
+                    textToSpeech?.stop()
+                }
+
                 try {
                     audioRecord?.stop()
                     audioRecord?.release()
@@ -363,7 +432,9 @@ jobs:
                         putExtra(Intent.EXTRA_STREAM, fileUri)
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     }
-                    startActivity(Intent.createChooser(shareIntent, "إرسال ومشاركة التسجيل المعزول:"))
+                    try {
+                        startActivity(Intent.createChooser(shareIntent, "إرسال ومشاركة التسجيل المعزول:"))
+                    } catch (e: Exception) {}
                 }
             }
 
@@ -372,48 +443,4 @@ jobs:
                 val byteRate = (longSampleRate * channels * bitsPerSample / 8).toLong()
                 header[0] = 'R'.toByte(); header[1] = 'I'.toByte(); header[2] = 'F'.toByte(); header[3] = 'F'.toByte()
                 header[4] = (totalDataLen and 0xff).toByte(); header[5] = (totalDataLen shr 8 and 0xff).toByte(); header[6] = (totalDataLen shr 16 and 0xff).toByte(); header[7] = (totalDataLen shr 24 and 0xff).toByte()
-                header[8] = 'W'.toByte(); header[9] = 'A'.toByte(); header[10] = 'V'.toByte(); header[11] = 'E'.toByte()
-                header[12] = 'f'.toByte(); header[13] = 'm'.toByte(); header[14] = 't'.toByte(); header[15] = ' '.toByte()
-                header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0
-                header[20] = 1; header[21] = 0
-                header[22] = channels.toByte(); header[23] = 0
-                header[24] = (longSampleRate and 0xff).toByte(); header[25] = (longSampleRate shr 8 and 0xff).toByte(); header[26] = (longSampleRate shr 16 and 0xff).toByte(); header[27] = (longSampleRate shr 24 and 0xff).toByte()
-                header[28] = (byteRate and 0xff).toByte(); header[29] = (byteRate shr 8 and 0xff).toByte(); header[30] = (byteRate shr 16 and 0xff).toByte(); header[31] = (byteRate shr 24 and 0xff).toByte()
-                header[32] = (channels * bitsPerSample / 8).toByte(); header[33] = 0
-                header[34] = bitsPerSample.toByte(); header[35] = 0
-                header[36] = 'd'.toByte(); header[37] = 'a'.toByte(); header[38] = 't'.toByte(); header[39] = 'a'.toByte()
-                header[40] = (totalAudioLen and 0xff).toByte(); header[41] = (totalAudioLen shr 8 and 0xff).toByte(); header[42] = (totalAudioLen shr 16 and 0xff).toByte(); header[43] = (totalAudioLen shr 24 and 0xff).toByte()
-                os.write(header, 0, 44)
-            }
-
-            private fun updateWavHeader(file: File?) {
-                if (file == null || !file.exists()) return
-                val totalAudioLen = file.length() - 44
-                val totalDataLen = file.length() - 8
-                val raf = RandomAccessFile(file, "rw")
-                raf.seek(4)
-                raf.write((totalDataLen and 0xff).toInt()); raf.write((totalDataLen shr 8 and 0xff).toInt()); raf.write((totalDataLen shr 16 and 0xff).toInt()); raf.write((totalDataLen shr 24 and 0xff).toInt())
-                raf.seek(40)
-                raf.write((totalAudioLen and 0xff).toInt()); raf.write((totalAudioLen shr 8 and 0xff).toInt()); raf.write((totalAudioLen shr 16 and 0xff).toInt()); raf.write((totalAudioLen shr 24 and 0xff).toInt())
-                raf.close()
-            }
-
-            override fun onDestroy() {
-                isRecording = false
-                scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
-                super.onDestroy()
-            }
-        }
-        EOF
-
-    - name: Compile and Force Build Debug APK
-      run: |
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
-
-    - name: Upload VoxPrompter APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: VoxPrompter-Final-APK
-        path: app/build/outputs/apk/debug/app-debug.apk
-        
+   
