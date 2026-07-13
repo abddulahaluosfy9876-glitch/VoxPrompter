@@ -1,116 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout 
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121212"
-    android:padding="16dp">
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#000000"
+    android:padding="20dp">
 
     <TextView
-        android:id="@+id/appTitle"
+        android:id="@+id/welcomeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="VoxPrompter Studio"
-        android:textColor="#00E676"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <EditText
-        android:id="@+id/etUserScript"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp"
-        android:background="#1E1E1E"
-        android:gravity="top|center_horizontal"
-        android:hint="اكتب أو الصق السكربت الخاص بك هنا ثم اضغط تشغيل..."
-        android:textColorHint="#757575"
+        android:text="مرحباً بك في VoxPrompter ✨"
         android:textColor="#FFFFFF"
         android:textSize="24sp"
-        android:textStyle="bold"
-        android:padding="12dp"
-        android:inputType="textMultiLine"
-        android:scrollbars="vertical"
-        app:layout_constraintBottom_toTopOf="@+id/textControlPanel"
-        app:layout_constraintTop_toBottomOf="@+id/appTitle" />
+        android:layout_marginBottom="20dp" />
 
-    <LinearLayout
-        android:id="@+id/textControlPanel"
+    <Button
+        android:id="@+id/testBtn"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@+id/controlPanel">
+        android:layout_height="60dp"
+        android:backgroundTint="#00796B"
+        android:textColor="#FFFFFF"
+        android:text="اضغط هنا لتجربة التشغيل 👍" />
 
-        <Button
-            android:id="@+id/btnTextDecrease"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="تصغير الخط -"
-            android:layout_marginEnd="8dp"
-            android:backgroundTint="#455A64"
-            android:textSize="12sp"/>
-
-        <Button
-            android:id="@+id/btnTextIncrease"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="تكبير الخط +"
-            android:backgroundTint="#455A64"
-            android:textSize="12sp"/>
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/controlPanel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        app:layout_constraintBottom_toBottomOf="parent">
-
-        <Button
-            android:id="@+id/btnSpeedDown"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="ابطأ -"
-            android:layout_marginEnd="6dp"
-            android:backgroundTint="#37474F"
-            android:textSize="13sp"/>
-
-        <Button
-            android:id="@+id/btnPlayPause"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="تشغيل"
-            android:backgroundTint="#00E676"
-            android:textColor="#121212"
-            android:textStyle="bold"
-            android:layout_marginEnd="6dp"
-            android:textSize="13sp"/>
-
-        <Button
-            android:id="@+id/btnReset"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="إعادة ↩️"
-            android:backgroundTint="#D32F2F"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:layout_marginEnd="6dp"
-            android:textSize="13sp"/>
-
-        <Button
-            android:id="@+id/btnSpeedUp"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="أسرع +"
-            android:backgroundTint="#37474F"
-            android:textSize="13sp"/>
-    </LinearLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
-        
+</LinearLayout>
