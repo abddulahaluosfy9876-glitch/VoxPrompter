@@ -60,7 +60,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // واجهة مستخدم متوافقة مع AndroidX وخفيفة لضمان استقرار التشغيل
+        // بناء الواجهة برمجياً لضمان التوافق المطلق مع AndroidX وحل مشكلة الشاشة البيضاء
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
@@ -70,15 +70,18 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val topButtonsLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             weightSum = 2f
-            layoutParams = LinearLayout.LayoutParams(-1, 110).apply { bottomMargin = 15 }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 
+                130
+            ).apply { bottomMargin = 15 }
         }
 
         val importBtn = Button(this).apply {
             text = "استيراد ملف TXT 📂"
             setBackgroundColor(Color.parseColor("#00695C"))
             setTextColor(Color.WHITE)
-            textSize = 12f
-            layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
+            textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { rightMargin = 10 }
         }
         topButtonsLayout.addView(importBtn)
 
@@ -86,24 +89,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             text = "لصق النص 📋"
             setBackgroundColor(Color.parseColor("#37474F"))
             setTextColor(Color.WHITE)
-            textSize = 12f
-            layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
+            textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f)
         }
         topButtonsLayout.addView(pasteBtn)
         mainLayout.addView(topButtonsLayout)
 
         textScrollView = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 20 }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 
+                0, 
+                1f
+            ).apply { bottomMargin = 20 }
             isVerticalScrollBarEnabled = true
+            setBackgroundColor(Color.parseColor("#121212"))
         }
 
         prompterInput = EditText(this).apply {
-            hint = "اكتب قصتك هنا... تم تحديث الحزم إلى AndroidX بنجاح! 🤖✨"
+            hint = "اكتب أو الصق قصتك هنا... تم التحديث والتوافق مع النظام الذكي 🤖✨"
             setHintTextColor(Color.GRAY)
             setTextColor(Color.WHITE)
             textSize = 22f
             gravity = Gravity.TOP or Gravity.START
-            setBackgroundColor(Color.parseColor("#121212"))
+            setBackgroundColor(Color.TRANSPARENT)
             setPadding(25, 25, 25, 800)
         }
         textScrollView?.addView(prompterInput)
@@ -112,21 +120,24 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val bottomButtonsLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             weightSum = 4f
-            layoutParams = LinearLayout.LayoutParams(-1, 120)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 
+                140
+            )
         }
 
         val resetBtn = Button(this).apply {
             text = "البداية ↩️"
             setBackgroundColor(Color.parseColor("#455A64"))
             setTextColor(Color.WHITE)
-            textSize = 12f
-            layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
+            textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f).apply { rightMargin = 10 }
             setOnClickListener {
                 textScrollView?.smoothScrollTo(0, 0)
                 if (textToSpeech?.isSpeaking == true) {
                     textToSpeech?.stop()
                 }
-                Toast.makeText(this@MainActivity, "تم إعادة النص لنقطة البداية", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MainActivity, "تم إعادة النص", Toast.LENGTH_SHORT).show()
             }
         }
         bottomButtonsLayout.addView(resetBtn)
@@ -135,8 +146,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
             setBackgroundColor(Color.parseColor("#00796B"))
             setTextColor(Color.WHITE)
-            textSize = 13f
-            layoutParams = LinearLayout.LayoutParams(0, -1, 3f)
+            textSize = 14f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 3f)
             setOnClickListener { 
                 handleAppAction()
             }
@@ -186,7 +197,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         if (count >= 3) {
             val options = arrayOf(
                 "🎤 تسجيل فائق النقاء والعزل (بصوتي الحقيقي)", 
-                "🤖 M المساعد الذكي (توليد الصوت ومحاكاة النبرة الحالية)"
+                "🤖 المساعد الذكي (توليد الصوت ومحاكاة النبرة الحالية)"
             )
             AlertDialog.Builder(this).apply {
                 setTitle("تم حفظ النبرة! اختر طريقة الأداء:")
@@ -218,7 +229,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             isRecording = true 
             startSmartScrolling()
         } else {
-            Toast.makeText(this, "محرك محاكاة النبرة جاري تهيئته، أعد الضغط خلال ثانيتين!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "محرك محاكاة النبرة جاري تهيئته، أعد الضغط خلال ثوانٍ!", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -317,7 +328,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     putExtra(Intent.EXTRA_STREAM, fileUri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                startActivity(Intent.createChooser(shareIntent, "مشاركة صوت الاستوديو المعزول:"))
+                startActivity(Intent.createChooser(shareIntent, "مشاركة الصوت النقي:"))
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
@@ -388,3 +399,4 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         } catch (e: Exception) { e.printStackTrace() }
     }
 }
+
