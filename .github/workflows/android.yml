@@ -20,6 +20,14 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    - name: Force Enable AndroidX Everywhere
+      run: |
+        echo "android.useAndroidX=true" > gradle.properties
+        echo "android.enableJetifier=true" >> gradle.properties
+        mkdir -p app
+        echo "android.useAndroidX=true" > app/gradle.properties
+        echo "android.enableJetifier=true" >> app/gradle.properties
+
     - name: Change Permission for Gradlew
       run: chmod +x gradlew
 
