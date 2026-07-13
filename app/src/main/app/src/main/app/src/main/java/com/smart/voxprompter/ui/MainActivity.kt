@@ -1,5 +1,6 @@
 package com.example.voxprompter
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
@@ -21,7 +22,6 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
@@ -31,7 +31,7 @@ import java.nio.ByteOrder
 import java.util.Locale
 import kotlin.math.abs
 
-class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
+class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     private var prompterInput: EditText? = null
     private var textScrollView: ScrollView? = null
@@ -60,7 +60,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // بناء الواجهة برمجياً لضمان التوافق المطلق مع AndroidX وحل مشكلة الشاشة البيضاء
+        // بناء الواجهة برمجياً لضمان الاستقرار التام على أي ثيم للمستودع
         val mainLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundColor(Color.BLACK)
@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
 
         prompterInput = EditText(this).apply {
-            hint = "اكتب أو الصق قصتك هنا... تم التحديث والتوافق مع النظام الذكي 🤖✨"
+            hint = "اكتب أو الصق قصتك هنا... تم التحديث والتثبيت الآمن 🤖✨"
             setHintTextColor(Color.GRAY)
             setTextColor(Color.WHITE)
             textSize = 22f
@@ -399,4 +399,3 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         } catch (e: Exception) { e.printStackTrace() }
     }
 }
-
