@@ -1,8 +1,8 @@
 package com.example.voxprompter
 
-import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.media.AudioFormat
@@ -21,6 +21,8 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
@@ -29,7 +31,7 @@ import java.nio.ByteOrder
 import java.util.Locale
 import kotlin.math.abs
 
-class MainActivity : Activity(), TextToSpeech.OnInitListener {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private var prompterInput: EditText? = null
     private var textScrollView: ScrollView? = null
@@ -51,138 +53,129 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
     private val sampleRate = 44100 
     private val channelConfig = AudioFormat.CHANNEL_IN_MONO
     private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-    private var bufferSize = 0
+    private var bufferSize = 4096
     private var recordingThread: Thread? = null
     private val noiseGateThreshold = 1200 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        try {
-            bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-            if (bufferSize <= 0) bufferSize = 4096
+        // واجهة مستخدم متوافقة مع AndroidX وخفيفة لضمان استقرار التشغيل
+        val mainLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.BLACK)
+            setPadding(30, 30, 30, 30)
+        }
 
-            // تهيئة آمنة جداً لمنع الانهيار فور تشغيل التطبيق
+        val topButtonsLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            weightSum = 2f
+            layoutParams = LinearLayout.LayoutParams(-1, 110).apply { bottomMargin = 15 }
+        }
+
+        val importBtn = Button(this).apply {
+            text = "استيراد ملف TXT 📂"
+            setBackgroundColor(Color.parseColor("#00695C"))
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
+        }
+        topButtonsLayout.addView(importBtn)
+
+        val pasteBtn = Button(this).apply {
+            text = "لصق النص 📋"
+            setBackgroundColor(Color.parseColor("#37474F"))
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
+        }
+        topButtonsLayout.addView(pasteBtn)
+        mainLayout.addView(topButtonsLayout)
+
+        textScrollView = ScrollView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 20 }
+            isVerticalScrollBarEnabled = true
+        }
+
+        prompterInput = EditText(this).apply {
+            hint = "اكتب قصتك هنا... تم تحديث الحزم إلى AndroidX بنجاح! 🤖✨"
+            setHintTextColor(Color.GRAY)
+            setTextColor(Color.WHITE)
+            textSize = 22f
+            gravity = Gravity.TOP or Gravity.START
+            setBackgroundColor(Color.parseColor("#121212"))
+            setPadding(25, 25, 25, 800)
+        }
+        textScrollView?.addView(prompterInput)
+        mainLayout.addView(textScrollView)
+
+        val bottomButtonsLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            weightSum = 4f
+            layoutParams = LinearLayout.LayoutParams(-1, 120)
+        }
+
+        val resetBtn = Button(this).apply {
+            text = "البداية ↩️"
+            setBackgroundColor(Color.parseColor("#455A64"))
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
+            setOnClickListener {
+                textScrollView?.smoothScrollTo(0, 0)
+                if (textToSpeech?.isSpeaking == true) {
+                    textToSpeech?.stop()
+                }
+                Toast.makeText(this@MainActivity, "تم إعادة النص لنقطة البداية", Toast.LENGTH_SHORT).show()
+            }
+        }
+        bottomButtonsLayout.addView(resetBtn)
+
+        actionButton = Button(this).apply {
+            text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
+            setBackgroundColor(Color.parseColor("#00796B"))
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            layoutParams = LinearLayout.LayoutParams(0, -1, 3f)
+            setOnClickListener { 
+                handleAppAction()
+            }
+        }
+        bottomButtonsLayout.addView(actionButton)
+        mainLayout.addView(bottomButtonsLayout)
+
+        setContentView(mainLayout)
+    }
+
+    private fun handleAppAction() {
+        if (isRecording) {
+            stopRecordingAndShare()
+            return
+        }
+
+        if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 200)
+            return
+        }
+
+        if (audioFile == null) {
+            audioFile = File(externalCacheDir ?: cacheDir, "VoxStudioRecord.wav")
+        }
+        if (textToSpeech == null) {
             try {
                 textToSpeech = TextToSpeech(applicationContext, this)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-
-            val mainLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                setBackgroundColor(Color.BLACK)
-                setPadding(30, 30, 30, 30)
-            }
-
-            val topButtonsLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                weightSum = 2f
-                layoutParams = LinearLayout.LayoutParams(-1, 110).apply { bottomMargin = 15 }
-            }
-
-            val importBtn = Button(this).apply {
-                text = "استيراد ملف TXT 📂"
-                setBackgroundColor(Color.parseColor("#00695C"))
-                setTextColor(Color.WHITE)
-                textSize = 12f
-                layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
-            }
-            topButtonsLayout.addView(importBtn)
-
-            val pasteBtn = Button(this).apply {
-                text = "لصق النص 📋"
-                setBackgroundColor(Color.parseColor("#37474F"))
-                setTextColor(Color.WHITE)
-                textSize = 12f
-                layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
-            }
-            topButtonsLayout.addView(pasteBtn)
-            mainLayout.addView(topButtonsLayout)
-
-            textScrollView = ScrollView(this).apply {
-                layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 20 }
-                isVerticalScrollBarEnabled = true
-            }
-
-            prompterInput = EditText(this).apply {
-                hint = "اكتب قصتك هنا... تم تفعيل محرك محاكاة الذكاء الاصطناعي للمساعد الذكي بنجاح! 🤖✨"
-                setHintTextColor(Color.GRAY)
-                setTextColor(Color.WHITE)
-                textSize = 22f
-                gravity = Gravity.TOP or Gravity.START
-                setBackgroundColor(Color.parseColor("#121212"))
-                setPadding(25, 25, 25, 800)
-            }
-            textScrollView?.addView(prompterInput)
-            mainLayout.addView(textScrollView)
-
-            val bottomButtonsLayout = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                weightSum = 4f
-                layoutParams = LinearLayout.LayoutParams(-1, 120)
-            }
-
-            val resetBtn = Button(this).apply {
-                text = "البداية ↩️"
-                setBackgroundColor(Color.parseColor("#455A64"))
-                setTextColor(Color.WHITE)
-                textSize = 12f
-                layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
-                setOnClickListener {
-                    textScrollView?.smoothScrollTo(0, 0)
-                    if (textToSpeech?.isSpeaking == true) {
-                        textToSpeech?.stop()
-                    }
-                    Toast.makeText(this@MainActivity, "تم إعادة النص وإيقاف الصوت الذكي", Toast.LENGTH_SHORT).show()
-                }
-            }
-            bottomButtonsLayout.addView(resetBtn)
-
-            actionButton = Button(this).apply {
-                text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
-                setBackgroundColor(Color.parseColor("#00796B"))
-                setTextColor(Color.WHITE)
-                textSize = 13f
-                layoutParams = LinearLayout.LayoutParams(0, -1, 3f)
-                setOnClickListener { 
-                    if (isRecording) {
-                        stopRecordingAndShare()
-                    } else {
-                        checkAndStartRecording()
-                    }
-                }
-            }
-            bottomButtonsLayout.addView(actionButton)
-            mainLayout.addView(bottomButtonsLayout)
-
-            setContentView(mainLayout)
-            
-            audioFile = File(externalCacheDir ?: cacheDir, "VoxStudioRecord.wav")
-            checkAudioPermissions()
-            
-        } catch (e: Exception) {
-            e.printStackTrace()
+            } catch (e: Exception) { e.printStackTrace() }
         }
+
+        checkAndStartRecording()
     }
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
-            val result = textToSpeech?.setLanguage(Locale("ar"))
-            if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-                textToSpeech?.setLanguage(Locale.US)
-            }
+            textToSpeech?.setLanguage(Locale("ar"))
             textToSpeech?.setPitch(1.0f)
             textToSpeech?.setSpeechRate(0.9f)
             isTtsInitialized = true
-        }
-    }
-
-    private fun checkAudioPermissions() {
-        if (Build.VERSION.SDK_INT >= 23) {
-            if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 200)
-            }
         }
     }
 
@@ -193,16 +186,12 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         if (count >= 3) {
             val options = arrayOf(
                 "🎤 تسجيل فائق النقاء والعزل (بصوتي الحقيقي)", 
-                "🤖 المساعد الذكي (توليد الصوت ومحاكاة النبرة الحالية)"
+                "🤖 M المساعد الذكي (توليد الصوت ومحاكاة النبرة الحالية)"
             )
             AlertDialog.Builder(this).apply {
                 setTitle("تم حفظ النبرة! اختر طريقة الأداء:")
                 setItems(options) { _, which ->
-                    if (which == 0) {
-                        startStudioRecording()
-                    } else {
-                        startAiVoiceSimulation()
-                    }
+                    if (which == 0) startStudioRecording() else startAiVoiceSimulation()
                 }
                 show()
             }
@@ -229,12 +218,15 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             isRecording = true 
             startSmartScrolling()
         } else {
-            Toast.makeText(this, "محرك محاكاة النبرة جاري تهيئته، حاول مجدداً!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "محرك محاكاة النبرة جاري تهيئته، أعد الضغط خلال ثانيتين!", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun startStudioRecording() {
         try {
+            bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+            if (bufferSize <= 0) bufferSize = 4096
+
             audioRecord = AudioRecord(
                 MediaRecorder.AudioSource.VOICE_COMMUNICATION,
                 sampleRate, channelConfig, audioFormat, bufferSize
@@ -269,28 +261,28 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         val data = ByteArray(bufferSize)
         var os: FileOutputStream? = null
         try {
-            os = FileOutputStream(audioFile)
-            writeWavHeader(os, 0, 0, sampleRate, 1, 16)
-            while (isRecording) {
-                val read = audioRecord?.read(data, 0, bufferSize) ?: 0
-                if (AudioRecord.ERROR_INVALID_OPERATION != read && AudioRecord.ERROR_BAD_VALUE != read && read > 0) {
-                    val shorts = ShortArray(read / 2)
-                    ByteBuffer.wrap(data, 0, read).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
-                    var maxAmplitude = 0
-                    for (i in shorts.indices) {
-                        val absVal = abs(shorts[i].toInt())
-                        if (absVal > maxAmplitude) maxAmplitude = absVal
+            if (audioFile != null) {
+                os = FileOutputStream(audioFile)
+                writeWavHeader(os, 0, 0, sampleRate, 1, 16)
+                while (isRecording) {
+                    val read = audioRecord?.read(data, 0, bufferSize) ?: 0
+                    if (AudioRecord.ERROR_INVALID_OPERATION != read && AudioRecord.ERROR_BAD_VALUE != read && read > 0) {
+                        val shorts = ShortArray(read / 2)
+                        ByteBuffer.wrap(data, 0, read).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
+                        var maxAmplitude = 0
+                        for (i in shorts.indices) {
+                            val absVal = abs(shorts[i].toInt())
+                            if (absVal > maxAmplitude) maxAmplitude = absVal
+                        }
+                        if (maxAmplitude < noiseGateThreshold) {
+                            for (i in 0 until read) data[i] = 0
+                        }
+                        os.write(data, 0, read)
                     }
-                    if (maxAmplitude < noiseGateThreshold) {
-                        for (i in 0 until read) data[i] = 0
-                    }
-                    os.write(data, 0, read)
                 }
+                os.close()
             }
-            os.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) { e.printStackTrace() }
     }
 
     private fun stopRecordingAndShare() {
@@ -307,15 +299,27 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             audioRecord = null
             noiseSuppressor?.release()
             gainControl?.release()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) { e.printStackTrace() }
 
         actionButton?.text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
         actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
         
         updateWavHeader(audioFile)
-        Toast.makeText(this, "تم حفظ معالجة الصوت بنجاح!", Toast.LENGTH_SHORT).show()
+        shareAudioFile()
+    }
+
+    private fun shareAudioFile() {
+        if (audioFile != null && audioFile!!.exists() && audioFile!!.length() > 44) {
+            try {
+                val fileUri = FileProvider.getUriForFile(this, "com.example.voxprompter.fileprovider", audioFile!!)
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "audio/wav"
+                    putExtra(Intent.EXTRA_STREAM, fileUri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                startActivity(Intent.createChooser(shareIntent, "مشاركة صوت الاستوديو المعزول:"))
+            } catch (e: Exception) { e.printStackTrace() }
+        }
     }
 
     private fun startSmartScrolling() {
@@ -336,30 +340,15 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
 
     private fun writeWavHeader(os: FileOutputStream, totalAudioLen: Long, totalDataLen: Long, longSampleRate: Int, channels: Int, byteRate: Int) {
         val header = ByteArray(44)
-        header[0] = 'R'.toByte()
-        header[1] = 'I'.toByte()
-        header[2] = 'F'.toByte()
-        header[3] = 'F'.toByte()
+        header[0] = 'R'.toByte(); header[1] = 'I'.toByte(); header[2] = 'F'.toByte(); header[3] = 'F'.toByte()
         header[4] = (totalDataLen and 0xff).toByte()
         header[5] = (totalDataLen shr 8 and 0xff).toByte()
         header[6] = (totalDataLen shr 16 and 0xff).toByte()
         header[7] = (totalDataLen shr 24 and 0xff).toByte()
-        header[8] = 'W'.toByte()
-        header[9] = 'A'.toByte()
-        header[10] = 'V'.toByte()
-        header[11] = 'E'.toByte()
-        header[12] = 'f'.toByte()
-        header[13] = 'm'.toByte()
-        header[14] = 't'.toByte()
-        header[15] = ' '.toByte()
-        header[16] = 16
-        header[17] = 0
-        header[18] = 0
-        header[19] = 0
-        header[20] = 1
-        header[21] = 0
-        header[22] = channels.toByte()
-        header[23] = 0
+        header[8] = 'W'.toByte(); header[9] = 'A'.toByte(); header[10] = 'V'.toByte(); header[11] = 'E'.toByte()
+        header[12] = 'f'.toByte(); header[13] = 'm'.toByte(); header[14] = 't'.toByte(); header[15] = ' '.toByte()
+        header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0; header[20] = 1; header[21] = 0
+        header[22] = channels.toByte(); header[23] = 0
         header[24] = (longSampleRate and 0xff).toByte()
         header[25] = (longSampleRate shr 8 and 0xff).toByte()
         header[26] = (longSampleRate shr 16 and 0xff).toByte()
@@ -368,14 +357,9 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
         header[29] = (longSampleRate * channels * byteRate / 8 shr 8 and 0xff).toByte()
         header[30] = (longSampleRate * channels * byteRate / 8 shr 16 and 0xff).toByte()
         header[31] = (longSampleRate * channels * byteRate / 8 shr 24 and 0xff).toByte()
-        header[32] = (channels * byteRate / 8).toByte()
-        header[33] = 0
-        header[34] = byteRate.toByte()
-        header[35] = 0
-        header[36] = 'd'.toByte()
-        header[37] = 'a'.toByte()
-        header[38] = 't'.toByte()
-        header[39] = 'a'.toByte()
+        header[32] = (channels * byteRate / 8).toByte(); header[33] = 0
+        header[34] = byteRate.toByte(); header[35] = 0
+        header[36] = 'd'.toByte(); header[37] = 'a'.toByte(); header[38] = 't'.toByte(); header[39] = 'a'.toByte()
         header[40] = (totalAudioLen and 0xff).toByte()
         header[41] = (totalAudioLen shr 8 and 0xff).toByte()
         header[42] = (totalAudioLen shr 16 and 0xff).toByte()
@@ -394,14 +378,13 @@ class MainActivity : Activity(), TextToSpeech.OnInitListener {
             raf.seek(40)
             raf.write(ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(totalAudioLen.toInt()).array())
             raf.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) { e.printStackTrace() }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        textToSpeech?.shutdown()
+        try {
+            textToSpeech?.shutdown()
+        } catch (e: Exception) { e.printStackTrace() }
     }
 }
-
