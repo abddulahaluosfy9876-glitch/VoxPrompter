@@ -1,66 +1,41 @@
-name: Reset main to commit 5cec4bc
+name: Clean Project and Revert Code
 
-# Trigger manually from the Actions tab
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type YES to confirm you want to run this reset (safety).'
+        description: 'Type YES to confirm cleanup'
         required: true
         default: 'NO'
 
 permissions:
   contents: write
-  workflows: write # تم إضافة هذه الصلاحية لتجاوز الرفض الأمني
-
-concurrency:
-  group: reset-main-to-5cec4bc
-  cancel-in-progress: true
-
-env:
-  TARGET_COMMIT: 5cec4bc14508d7d749ab0d44c6467e20d7bd37e9
-  TARGET_BRANCH: main
 
 jobs:
-  reset-main:
+  cleanup:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'YES'
     steps:
-      - name: Checkout repository (full history)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Show current HEAD
-        run: git --no-pager log -1 --pretty=oneline
-
-      - name: Create a backup of current main on remote
-        run: |
-          TIMESTAMP=$(date -u +%Y%m%d%H%M%S)
-          git fetch origin main
-          # Create a backup branch on the remote pointing at current origin/main
-          git branch backup-main-$TIMESTAMP origin/main || true
-          git push origin backup-main-$TIMESTAMP
-        shell: bash
-
       - name: Configure git user
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        shell: bash
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Hard reset main to target commit and force-push
+      - name: Remove duplicated folder and restore stable files
         run: |
-          git fetch --all --prune
-          # Ensure we have a local main branch tracking remote
-          git checkout -B $TARGET_BRANCH origin/$TARGET_BRANCH
-          git reset --hard $TARGET_COMMIT
-          git push --force origin $TARGET_BRANCH
-        shell: bash
-
-      - name: Report result
-        run: |
-          echo "Reset complete. main now points at:"
-          git --no-pager log -1 --pretty=oneline
-        shell: bash
-        
+          # 1. حذف المجلد المكرر الفاسد نهائياً من ساحة العمل
+          rm -rf app/src/main/app
+          
+          # 2. استرجاع كود MainActivity السليم من الكوميت المستقر
+          git checkout 5cec4bc14508d7d749ab0d44c6467e20d7bd37e9 -- app/src/main/java/
+          
+          # 3. حفظ التغييرات ودفعها بشكل طبيعي وآمن دون المساس بملفات الـ workflows
+          git add -A
+          git commit -m "Clean project structure and restore stable Java/Kotlin source files" || echo "No changes to commit"
+          git push origin main
+          
