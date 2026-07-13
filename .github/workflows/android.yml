@@ -1,4 +1,4 @@
-name: VoxPrompter Android CI
+name: VoxPrompter Android APK Build
 
 on:
   push:
@@ -109,4 +109,331 @@ jobs:
         import android.widget.LinearLayout
         import android.widget.ScrollView
         import android.widget.Toast
-        
+        import androidx.core.content.FileProvider
+        import java.io.File
+        import java.io.FileOutputStream
+        import java.io.RandomAccessFile
+        import java.nio.ByteBuffer
+        import java.nio.ByteOrder
+        import kotlin.math.abs
+
+        class MainActivity : Activity() {
+
+            private var prompterInput: EditText? = null
+            private var textScrollView: ScrollView? = null
+            
+            private var audioRecord: AudioRecord? = null
+            private var noiseSuppressor: NoiseSuppressor? = null
+            private var gainControl: AutomaticGainControl? = null
+            
+            private var audioFile: File? = null
+            private var isRecording = false
+            private var actionButton: Button? = null
+
+            private val scrollHandler = Handler(Looper.getMainLooper())
+            private var scrollRunnable: Runnable? = null
+            private val scrollSpeedPx = 3 
+            private val scrollIntervalMs = 50L 
+
+            private val sampleRate = 44100 
+            private val channelConfig = AudioFormat.CHANNEL_IN_MONO
+            private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+            private var bufferSize = 0
+            private var recordingThread: Thread? = null
+
+            private val noiseGateThreshold = 1200 
+
+            override fun onCreate(savedInstanceState: Bundle?) {
+                super.onCreate(savedInstanceState)
+
+                bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+
+                val mainLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.VERTICAL
+                    setBackgroundColor(Color.BLACK)
+                    setPadding(30, 30, 30, 30)
+                }
+
+                val topButtonsLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    weightSum = 2f
+                    layoutParams = LinearLayout.LayoutParams(-1, 110).apply { bottomMargin = 15 }
+                }
+
+                val importBtn = Button(this).apply {
+                    text = "استيراد ملف TXT 📂"
+                    setBackgroundColor(Color.parseColor("#00695C"))
+                    setTextColor(Color.WHITE)
+                    textSize = 12f
+                    layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
+                }
+                topButtonsLayout.addView(importBtn)
+
+                val pasteBtn = Button(this).apply {
+                    text = "لصق النص 📋"
+                    setBackgroundColor(Color.parseColor("#37474F"))
+                    setTextColor(Color.WHITE)
+                    textSize = 12f
+                    layoutParams = LinearLayout.LayoutParams(0, -1, 1f)
+                }
+                topButtonsLayout.addView(pasteBtn)
+                mainLayout.addView(topButtonsLayout)
+
+                textScrollView = ScrollView(this).apply {
+                    layoutParams = LinearLayout.LayoutParams(-1, 0, 1f).apply { bottomMargin = 20 }
+                    isVerticalScrollBarEnabled = true
+                }
+
+                prompterInput = EditText(this).apply {
+                    hint = "اكتب قصتك هنا... تم تحديث وتطوير الفلتر الرقمي لمنع التقاط الأصوات المحيطة والمشوشة تماماً وبأعلى جودة! 🎙️✨"
+                    setHintTextColor(Color.GRAY)
+                    setTextColor(Color.WHITE)
+                    textSize = 22f
+                    gravity = Gravity.TOP or Gravity.START
+                    setBackgroundColor(Color.parseColor("#121212"))
+                    setPadding(25, 25, 25, 800)
+                }
+                
+                textScrollView?.addView(prompterInput)
+                mainLayout.addView(textScrollView)
+
+                val bottomButtonsLayout = LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    weightSum = 4f
+                    layoutParams = LinearLayout.LayoutParams(-1, 120)
+                }
+
+                val resetBtn = Button(this).apply {
+                    text = "البداية ↩️"
+                    setBackgroundColor(Color.parseColor("#455A64"))
+                    setTextColor(Color.WHITE)
+                    textSize = 12f
+                    layoutParams = LinearLayout.LayoutParams(0, -1, 1f).apply { rightMargin = 10 }
+                    setOnClickListener {
+                        textScrollView?.smoothScrollTo(0, 0)
+                        Toast.makeText(this@MainActivity, "تم إعادة النص للبداية", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                bottomButtonsLayout.addView(resetBtn)
+
+                actionButton = Button(this).apply {
+                    text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
+                    setBackgroundColor(Color.parseColor("#00796B"))
+                    setTextColor(Color.WHITE)
+                    textSize = 13f
+                    layoutParams = LinearLayout.LayoutParams(0, -1, 3f)
+                    setOnClickListener { 
+                        if (isRecording) {
+                            stopRecordingAndShare()
+                        } else {
+                            checkAndStartRecording()
+                        }
+                    }
+                }
+                bottomButtonsLayout.addView(actionButton)
+                mainLayout.addView(bottomButtonsLayout)
+
+                setContentView(mainLayout)
+
+                audioFile = File(externalCacheDir ?: cacheDir, "VoxStudioRecord.wav")
+                checkAudioPermissions()
+            }
+
+            private fun checkAudioPermissions() {
+                if (Build.VERSION.SDK_INT >= 23) {
+                    if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                        requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 200)
+                    }
+                }
+            }
+
+            private fun checkAndStartRecording() {
+                val prefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
+                val count = prefs.getInt("voice_samples_count", 0)
+
+                if (count >= 3) {
+                    val options = arrayOf(
+                        "🎤 تسجيل فائق النقاء والعزل (بصوتي الحقيقي)", 
+                        "🤖 المساعد الذكي (قيد التجهيز للمرحلة التالية)"
+                    )
+                    
+                    AlertDialog.Builder(this).apply {
+                        setTitle("تم حفظ النبرة! اختر النمط المتاح حالياً:")
+                        setItems(options) { _, which ->
+                            if (which == 0) startStudioRecording() else Toast.makeText(context, "سيتم ربط محرك المحاكاة بالذكاء الاصطناعي في الخطوة القادمة مباشرة!", Toast.LENGTH_LONG).show()
+                        }
+                        show()
+                    }
+                } else {
+                    startStudioRecording()
+                    Toast.makeText(this, "جاري حفظ بصمتك المعزولة، العينة رقم (${count + 1}) من 3", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            private fun startStudioRecording() {
+                try {
+                    audioRecord = AudioRecord(
+                        MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                        sampleRate, channelConfig, audioFormat, bufferSize
+                    )
+
+                    if (NoiseSuppressor.isAvailable()) {
+                        noiseSuppressor = NoiseSuppressor.create(audioRecord!!.audioSessionId)
+                        noiseSuppressor?.enabled = true
+                    }
+
+                    if (AutomaticGainControl.isAvailable()) {
+                        gainControl = AutomaticGainControl.create(audioRecord!!.audioSessionId)
+                        gainControl?.enabled = true
+                    }
+
+                    audioRecord?.startRecording()
+                    isRecording = true
+                    actionButton?.text = "إيقاف ومشاركة الصوت 📤"
+                    actionButton?.setBackgroundColor(Color.parseColor("#C62828"))
+
+                    textScrollView?.scrollTo(0, 0)
+                    startSmartScrolling()
+
+                    recordingThread = Thread({ writeAudioDataWithHighNoiseGate() }, "AudioRecord Thread")
+                    recordingThread?.start()
+
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Toast.makeText(this, "فشل بدء التسجيل بجودة عالية", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            private fun writeAudioDataWithHighNoiseGate() {
+                val data = ByteArray(bufferSize)
+                var os: FileOutputStream? = null
+                try {
+                    os = FileOutputStream(audioFile)
+                    writeWavHeader(os, 0, 0, sampleRate, 1, 16)
+                    
+                    while (isRecording) {
+                        val read = audioRecord?.read(data, 0, bufferSize) ?: 0
+                        if (AudioRecord.ERROR_INVALID_OPERATION != read && AudioRecord.ERROR_BAD_VALUE != read && read > 0) {
+                            
+                            val shorts = ShortArray(read / 2)
+                            ByteBuffer.wrap(data, 0, read).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(shorts)
+                            
+                            var maxAmplitude = 0
+                            for (i in shorts.indices) {
+                                val absVal = abs(shorts[i].toInt())
+                                if (absVal > maxAmplitude) {
+                                    maxAmplitude = absVal
+                                }
+                            }
+                            
+                            if (maxAmplitude < noiseGateThreshold) {
+                                for (i in 0 until read) {
+                                    data[i] = 0
+                                }
+                            }
+                            
+                            os.write(data, 0, read)
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                } finally {
+                    os?.close()
+                }
+            }
+
+            private fun startSmartScrolling() {
+                scrollRunnable = object : Runnable {
+                    override fun run() {
+                        if (isRecording) {
+                            textScrollView?.smoothScrollBy(0, scrollSpeedPx)
+                            
+                            val totalHeight = prompterInput?.height ?: 0
+                            val scrollY = textScrollView?.scrollY ?: 0
+                            val scrollViewHeight = textScrollView?.height ?: 0
+                            
+                            if (scrollY + scrollViewHeight >= totalHeight - 50) {
+                                stopRecordingAndShare()
+                                return
+                            }
+                            scrollHandler.postDelayed(this, scrollIntervalMs)
+                        }
+                    }
+                }
+                scrollHandler.postDelayed(scrollRunnable!!, 1000)
+            }
+
+            private fun stopRecordingAndShare() {
+                isRecording = false
+                scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
+
+                try {
+                    audioRecord?.stop()
+                    audioRecord?.release()
+                } catch (e: Exception) {}
+                audioRecord = null
+                
+                noiseSuppressor?.release()
+                gainControl?.release()
+
+                actionButton?.text = "ابدأ تسجيل الصوت والتحرك الذكي 🎙️"
+                actionButton?.setBackgroundColor(Color.parseColor("#00796B"))
+
+                updateWavHeader(audioFile)
+
+                val prefs = getSharedPreferences("VoxPrefs", Context.MODE_PRIVATE)
+                val currentCount = prefs.getInt("voice_samples_count", 0) + 1
+                prefs.edit().putInt("voice_samples_count", currentCount).commit()
+
+                if (audioFile != null && audioFile!!.exists() && audioFile!!.length() > 44) {
+                    val fileUri = FileProvider.getUriForFile(this, "com.example.voxprompter.fileprovider", audioFile!!)
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "audio/wav"
+                        putExtra(Intent.EXTRA_STREAM, fileUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(shareIntent, "إرسال ومشاركة التسجيل المعزول:"))
+                }
+            }
+
+            private fun writeWavHeader(os: FileOutputStream, totalAudioLen: Long, totalDataLen: Long, longSampleRate: Int, channels: Int, bitsPerSample: Int) {
+                val header = ByteArray(44)
+                val byteRate = (longSampleRate * channels * bitsPerSample / 8).toLong()
+                header[0] = 'R'.toByte(); header[1] = 'I'.toByte(); header[2] = 'F'.toByte(); header[3] = 'F'.toByte()
+                header[4] = (totalDataLen and 0xff).toByte(); header[5] = (totalDataLen shr 8 and 0xff).toByte(); header[6] = (totalDataLen shr 16 and 0xff).toByte(); header[7] = (totalDataLen shr 24 and 0xff).toByte()
+                header[8] = 'W'.toByte(); header[9] = 'A'.toByte(); header[10] = 'V'.toByte(); header[11] = 'E'.toByte()
+                header[12] = 'f'.toByte(); header[13] = 'm'.toByte(); header[14] = 't'.toByte(); header[15] = ' '.toByte()
+                header[16] = 16; header[17] = 0; header[18] = 0; header[19] = 0
+                header[20] = 1; header[21] = 0
+                header[22] = channels.toByte(); header[23] = 0
+                header[24] = (longSampleRate and 0xff).toByte(); header[25] = (longSampleRate shr 8 and 0xff).toByte(); header[26] = (longSampleRate shr 16 and 0xff).toByte(); header[27] = (longSampleRate shr 24 and 0xff).toByte()
+                header[28] = (byteRate and 0xff).toByte(); header[29] = (byteRate shr 8 and 0xff).toByte(); header[30] = (byteRate shr 16 and 0xff).toByte(); header[31] = (byteRate shr 24 and 0xff).toByte()
+                header[32] = (channels * bitsPerSample / 8).toByte(); header[33] = 0
+                header[34] = bitsPerSample.toByte(); header[35] = 0
+                header[36] = 'd'.toByte(); header[37] = 'a'.toByte(); header[38] = 't'.toByte(); header[39] = 'a'.toByte()
+                header[40] = (totalAudioLen and 0xff).toByte(); header[41] = (totalAudioLen shr 8 and 0xff).toByte(); header[42] = (totalAudioLen shr 16 and 0xff).toByte(); header[43] = (totalAudioLen shr 24 and 0xff).toByte()
+                os.write(header, 0, 44)
+            }
+
+            private fun updateWavHeader(file: File?) {
+                if (file == null || !file.exists()) return
+                val totalAudioLen = file.length() - 44
+                val totalDataLen = file.length() - 8
+                val raf = RandomAccessFile(file, "rw")
+                raf.seek(4)
+                raf.write((totalDataLen and 0xff).toInt()); raf.write((totalDataLen shr 8 and 0xff).toInt()); raf.write((totalDataLen shr 16 and 0xff).toInt()); raf.write((totalDataLen shr 24 and 0xff).toInt())
+                raf.seek(40)
+                raf.write((totalAudioLen and 0xff).toInt()); raf.write((totalAudioLen shr 8 and 0xff).toInt()); raf.write((totalAudioLen shr 16 and 0xff).toInt()); raf.write((totalAudioLen shr 24 and 0xff).toInt())
+                raf.close()
+            }
+
+            override fun onDestroy() {
+                isRecording = false
+                scrollRunnable?.let { scrollHandler.removeCallbacks(it) }
+                super.onDestroy()
+            }
+        }
+        EOF
+
+    # الخطوة المصححة والمضمونة لإنتاج ملف الـ APK الفعلي ورفعه
+    - name: Compile and Force Build Debu
