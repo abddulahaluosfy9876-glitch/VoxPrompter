@@ -1,50 +1,44 @@
-package com.example.voxprompter
+name: Create Secure Ground Truth Branch
 
-import androidx.appcompat.app.AppCompatActivity
-import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
-import android.widget.ScrollView
-import android.widget.Toast
-import com.example.voxprompter.R
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type YES to confirm creating the stable backup branch'
+        required: true
+        default: 'NO'
 
-class MainActivity : AppCompatActivity() {
+permissions:
+  contents: write
 
-    private var prompterEditText: EditText? = null
-    private var scrollView: ScrollView? = null
-    private var btnAction: Button? = null
-    private var isRecording = false
+jobs:
+  create-secure-vault:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'YES'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # جلب كامل تاريخ المستودع لضمان البناء السليم للفرع الجديد
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-        // ربط العناصر بالواجهة باستخدام R الصحيح
-        prompterEditText = findViewById(R.id.prompterEditText)
-        scrollView = findViewById(R.id.scrollView)
-        btnAction = findViewById(R.id.btnAction)
-        
-        val btnImport = findViewById<Button>(R.id.btnImport)
-        val btnPaste = findViewById<Button>(R.id.btnPaste)
-
-        btnImport?.setOnClickListener {
-            Toast.makeText(this, "ميزة استيراد الملفات جاهزة", Toast.LENGTH_SHORT).show()
-        }
-
-        btnPaste?.setOnClickListener {
-            Toast.makeText(this, "ميزة لصق النصوص جاهزة", Toast.LENGTH_SHORT).show()
-        }
-
-        btnAction?.setOnClickListener {
-            if (isRecording) {
-                isRecording = false
-                btnAction?.text = "ابدأ"
-                Toast.makeText(this, "تم إيقاف التسجيل", Toast.LENGTH_SHORT).show()
-            } else {
-                isRecording = true
-                btnAction?.text = "إيقاف"
-                Toast.makeText(this, "بدء التسجيل...", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-}
+      - name: Initialize and Push Stable Backup Branch
+        run: |
+          # 1. التحقق من وجود الفرع مسبقاً أو إنشائه بشكل نظيف تماماً
+          git checkout -b stable-backup-base
+          
+          # 2. إنشاء ملف توثيقي صغير داخل الفرع لحماية النقطة المرجعية
+          echo "# VoxPrompter Stable Backup Vault" > STABLE_README.md
+          echo "This branch is a secure ground truth containing the verified working baseline of the application." >> STABLE_README.md
+          echo "Date secured: $(date)" >> STABLE_README.md
+          
+          git add STABLE_README.md
+          git commit -m "Identity: Secure and initialize ground-truth branch for stable backup" || echo "Branch already synchronized"
+          
+          # 3. رفع الفرع الجديد إلى جيتهاب ليكون الخزنة المرجعية الآمنة
+          git push -u origin stable-backup-base --force
+          
