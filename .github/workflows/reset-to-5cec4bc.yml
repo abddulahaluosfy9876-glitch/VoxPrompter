@@ -1,87 +1,50 @@
-name: Apply Clean Stable MainActivity Fix
+package com.example.voxprompter
 
-on:
-  workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Type YES to confirm fix'
-        required: true
-        default: 'NO'
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ScrollView
+import android.widget.Toast
+import com.example.voxprompter.R
 
-permissions:
-  contents: write
+class MainActivity : AppCompatActivity() {
 
-jobs:
-  update-code:
-    runs-on: ubuntu-latest
-    if: github.event.inputs.confirm == 'YES'
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    private var prompterEditText: EditText? = null
+    private var scrollView: ScrollView? = null
+    private var btnAction: Button? = null
+    private var isRecording = false
 
-      - name: Configure git user
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
-      - name: Write Clean MainActivity.kt
-        run: |
-          mkdir -p app/src/main/java/com/smart/voxprompter/ui
-          cat << 'EOF' > app/src/main/java/com/smart/voxprompter/ui/MainActivity.kt
-          package com.smart.voxprompter.ui
+        // ربط العناصر بالواجهة باستخدام R الصحيح
+        prompterEditText = findViewById(R.id.prompterEditText)
+        scrollView = findViewById(R.id.scrollView)
+        btnAction = findViewById(R.id.btnAction)
+        
+        val btnImport = findViewById<Button>(R.id.btnImport)
+        val btnPaste = findViewById<Button>(R.id.btnPaste)
 
-          import android.app.Activity
-          import android.os.Bundle
-          import android.widget.Button
-          import android.widget.EditText
-          import android.widget.ScrollView
-          import android.widget.Toast
-          import com.smart.voxprompter.R
+        btnImport?.setOnClickListener {
+            Toast.makeText(this, "ميزة استيراد الملفات جاهزة", Toast.LENGTH_SHORT).show()
+        }
 
-          class MainActivity : Activity() {
+        btnPaste?.setOnClickListener {
+            Toast.makeText(this, "ميزة لصق النصوص جاهزة", Toast.LENGTH_SHORT).show()
+        }
 
-              private var prompterEditText: EditText? = null
-              private var scrollView: ScrollView? = null
-              private var btnAction: Button? = null
-              private var isRecording = false
-
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  setContentView(R.layout.activity_main)
-
-                  prompterEditText = findViewById(R.id.prompterEditText)
-                  scrollView = findViewById(R.id.scrollView)
-                  btnAction = findViewById(R.id.btnAction)
-                  
-                  val btnImport = findViewById<Button>(R.id.btnImport)
-                  val btnPaste = findViewById<Button>(R.id.btnPaste)
-
-                  btnImport?.setOnClickListener {
-                      Toast.makeText(this, "ميزة استيراد الملفات جاهزة", Toast.LENGTH_SHORT).show()
-                  }
-
-                  btnPaste?.setOnClickListener {
-                      Toast.makeText(this, "ميزة لصق النصوص جاهزة", Toast.LENGTH_SHORT).show()
-                  }
-
-                  btnAction?.setOnClickListener {
-                      if (isRecording) {
-                          isRecording = false
-                          btnAction?.text = "ابدأ"
-                          Toast.makeText(this, "تم إيقاف التسجيل", Toast.LENGTH_SHORT).show()
-                      } else {
-                          isRecording = true
-                          btnAction?.text = "إيقاف"
-                          Toast.makeText(this, "بدء التسجيل...", Toast.LENGTH_SHORT).show()
-                      }
-                  }
-              }
-          }
-          EOF
-
-      - name: Commit and Push Fix
-        run: |
-          git add app/src/main/java/com/smart/voxprompter/ui/MainActivity.kt
-          git commit -m "Fix: Correct R import and package structure for stable build" || echo "No changes"
-          git push origin main
-          
+        btnAction?.setOnClickListener {
+            if (isRecording) {
+                isRecording = false
+                btnAction?.text = "ابدأ"
+                Toast.makeText(this, "تم إيقاف التسجيل", Toast.LENGTH_SHORT).show()
+            } else {
+                isRecording = true
+                btnAction?.text = "إيقاف"
+                Toast.makeText(this, "بدء التسجيل...", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}
