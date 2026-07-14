@@ -1,10 +1,10 @@
-name: Clean Project and Revert Code
+name: Restore MainActivity Only
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type YES to confirm cleanup'
+        description: 'Type YES to confirm'
         required: true
         default: 'NO'
 
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  cleanup:
+  restore-file:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'YES'
     steps:
@@ -26,16 +26,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Remove duplicated folder and restore stable files
+      - name: Fetch and restore stable MainActivity
         run: |
-          # 1. حذف المجلد المكرر الفاسد نهائياً من ساحة العمل لضمان التطهير
-          rm -rf app/src/main/app
+          # 1. جلب التعديل المستقر fcdabfa للتأكد من وجوده محلياً في الخادم
+          git fetch origin fcdabfa11d61992df95c47932ee4e976db5767c2
           
-          # 2. استرجاع مجلد app بالكامل إلى حالته السليمة تماماً عند الكوميت المستقر
-          git checkout 5cec4bc14508d7d749ab0d44c6467e20d7bd37e9 -- app
+          # 2. استخراج ملف MainActivity.kt السليم فقط من ذلك التعديل
+          git checkout fcdabfa11d61992df95c47932ee4e976db5767c2 -- app/src/main/java/com/example/voxprompter/MainActivity.kt
           
-          # 3. حفظ التغييرات ودفعها بشكل آمن ومستقر
-          git add -A
-          git commit -m "Clean project structure and restore stable app module" || echo "No changes to commit"
+          # 3. حفظ التعديل ودقعه للفرع الرئيسي
+          git add app/src/main/java/com/example/voxprompter/MainActivity.kt
+          git commit -m "Success: Restore MainActivity.kt to stable version (4.54 KB)" || echo "No changes"
           git push origin main
           
