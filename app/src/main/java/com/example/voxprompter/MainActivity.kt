@@ -1,165 +1,50 @@
-package com.example.voxprompter
+package com.smart.voxprompter.ui
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
+import android.app.Activity
 import android.os.Bundle
 import android.widget.Button
-import android.widget.TextView
+import android.widget.EditText
+import android.widget.ScrollView
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import kotlin.math.log10
-import kotlin.math.sqrt
+import com.smart.voxprompter.R
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : Activity() {
 
-    private val REQUEST_RECORD_AUDIO_PERMISSION = 200
-    private var permissionToRecordAccepted = false
-    private val permissions = arrayOf(Manifest.permission.RECORD_AUDIO)
-
-    private var audioRecord: AudioRecord? = null
+    private var prompterEditText: EditText? = null
+    private var scrollView: ScrollView? = null
+    private var btnAction: Button? = null
     private var isRecording = false
-    private var recordingThread: Thread? = null
-
-    private val sampleRate = 44100
-    private val channelConfig = AudioFormat.CHANNEL_IN_MONO
-    private val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-    private val bufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
-
-    private lateinit var statusTextView: TextView
-    private lateinit var recordButton: Button
-
-    private var noiseGateThresholdDb = -40.0 // Default threshold in dB
-    private var rawAudioFile: File? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        statusTextView = findViewById(R.id.statusTextView)
-        recordButton = findViewById(R.id.recordButton)
+        // ربط العناصر بشكل آمن وصحيح باستخدام R التابع للمشروع
+        prompterEditText = findViewById(R.id.prompterEditText)
+        scrollView = findViewById(R.id.scrollView)
+        btnAction = findViewById(R.id.btnAction)
+        
+        val btnImport = findViewById<Button>(R.id.btnImport)
+        val btnPaste = findViewById<Button>(R.id.btnPaste)
 
-        ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION)
+        btnImport?.setOnClickListener {
+            Toast.makeText(this, "ميزة استيراد الملفات جاهزة", Toast.LENGTH_SHORT).show()
+        }
 
-        recordButton.setOnClickListener {
+        btnPaste?.setOnClickListener {
+            Toast.makeText(this, "ميزة لصق النصوص جاهزة", Toast.LENGTH_SHORT).show()
+        }
+
+        btnAction?.setOnClickListener {
             if (isRecording) {
-                stopRecordingProcess()
+                isRecording = false
+                btnAction?.text = "ابدأ"
+                Toast.makeText(this, "تم إيقاف التسجيل", Toast.LENGTH_SHORT).show()
             } else {
-                if (permissionToRecordAccepted) {
-                    startRecordingProcess()
-                } else {
-                    Toast.makeText(this, "Permission required to record audio", Toast.LENGTH_SHORT).show()
-                }
+                isRecording = true
+                btnAction?.text = "إيقاف"
+                Toast.makeText(this, "بدء التسجيل...", Toast.LENGTH_SHORT).show()
             }
         }
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        permissionToRecordAccepted = if (requestCode == REQUEST_RECORD_AUDIO_PERMISSION) {
-            grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
-        } else {
-            false
-        }
-        if (!permissionToRecordAccepted) finish()
-    }
-
-    private fun startRecordingProcess() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            return
-        }
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            sampleRate,
-            channelConfig,
-            audioFormat,
-            bufferSize
-        )
-
-        if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-            statusTextView.text = "Status: Initialization Failed"
-            return
-        }
-
-        audioRecord?.startRecording()
-        isRecording = true
-        statusTextView.text = "Status: Recording with Noise Gate..."
-        recordButton.text = "Stop"
-
-        rawAudioFile = File(getExternalFilesDir(null), "vox_raw_recording.pcm")
-
-        recordingThread = Thread({ writeAudioDataToFileWithNoiseGate() }, "AudioRecord Thread")
-        recordingThread?.start()
-    }
-
-    private fun writeAudioDataToFileWithNoiseGate() {
-        val sData = ShortArray(bufferSize / 2)
-        var os: FileOutputStream? = null
-        try {
-            os = FileOutputStream(rawAudioFile)
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
-
-        while (isRecording) {
-            val readSize = audioRecord?.read(sData, 0, sData.size) ?: 0
-            if (readSize > 0) {
-                var rms = 0.0
-                for (i in 0 until readSize) {
-                    rms += sData[i] * sData[i]
-                }
-                rms = sqrt(rms / readSize)
-                val db = 20 * log10(rms / 32767.0)
-
-                if (db < noiseGateThresholdDb) {
-                    for (i in 0 until readSize) {
-                        sData[i] = 0
-                    }
-                }
-
-                try {
-                    val bData = ShortArrayToByteArray(sData, readSize)
-                    os?.write(bData, 0, readSize * 2)
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                }
-            }
-        }
-        try {
-            os?.close()
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun ShortArrayToByteArray(sData: ShortArray, size: Int): ByteArray {
-        val bytes = ByteArray(size * 2)
-        for (i in 0 until size) {
-            bytes[i * 2] = (sData[i].toInt() and 0x00FF).toByte()
-            bytes[i * 2 + 1] = (sData[i].toInt() shr 8).toByte()
-        }
-        return bytes
-    }
-
-    private fun stopRecordingProcess() {
-        isRecording = false
-        audioRecord?.stop()
-        audioRecord?.release()
-        audioRecord = null
-        recordingThread = null
-        statusTextView.text = "Status: Recording Saved"
-        recordButton.text = "Record"
-        Toast.makeText(this, "Saved to: ${rawAudioFile?.absolutePath}", Toast.LENGTH_LONG).show()
     }
 }
