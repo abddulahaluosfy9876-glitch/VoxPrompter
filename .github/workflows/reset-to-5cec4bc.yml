@@ -1,10 +1,10 @@
-name: Restore MainActivity Only
+name: Add Voice Follower to MainActivity
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type YES to confirm'
+        description: 'Type YES to confirm adding Voice Follower'
         required: true
         default: 'NO'
 
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  restore-file:
+  update-code:
     runs-on: ubuntu-latest
     if: github.event.inputs.confirm == 'YES'
     steps:
@@ -24,31 +24,32 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Write Stable MainActivity Code Directly
+      - name: Write Updated MainActivity with Voice Follower
         run: |
-          # 1. التأكد من إنشاء المجلد الصحيح وتفادي أي مجلد مكرر فاسد
-          rm -rf app/src/main/app
-          mkdir -p app/src/main/java/com/example/voxprompter
-          
-          # 2. كتابة كود الـ Noise Gate المستقر والسليم مباشرة (الذي يعطي حجم 4.54 KB)
           cat << 'EOF' > app/src/main/java/com/example/voxprompter/MainActivity.kt
           package com.example.voxprompter
 
           import android.Manifest
+          import android.content.Intent
           import android.content.pm.PackageManager
           import android.media.AudioFormat
           import android.media.AudioRecord
           import android.media.MediaRecorder
           import android.os.Bundle
+          import android.speech.RecognitionListener
+          import android.speech.RecognizerIntent
+          import android.speech.SpeechRecognizer
           import android.widget.Button
+          import android.widget.EditText
+          import android.widget.ScrollView
           import android.widget.TextView
           import android.widget.Toast
           import androidx.appcompat.app.AppCompatActivity
           import androidx.core.app.ActivityCompat
-          import androidx.core.content.ContextCompat
           import java.io.File
           import java.io.FileOutputStream
           import java.io.IOException
+          import java.util.Locale
           import kotlin.math.log10
           import kotlin.math.sqrt
 
@@ -69,8 +70,14 @@ jobs:
 
               private lateinit var statusTextView: TextView
               private lateinit var recordButton: Button
+              
+              // عناصر المحاكي الصوتي الذكي (Teleprompter UI)
+              private lateinit var prompterEditText: EditText
+              private lateinit var scrollView: ScrollView
+              private var speechRecognizer: SpeechRecognizer? = null
+              private var recognizerIntent: Intent? = null
 
-              private var noiseGateThresholdDb = -40.0 // Default threshold in dB
+              private var noiseGateThresholdDb = -40.0
               private var rawAudioFile: File? = null
 
               override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,20 +86,29 @@ jobs:
 
                   statusTextView = findViewById(R.id.statusTextView)
                   recordButton = findViewById(R.id.recordButton)
+                  
+                  // ربط عناصر التمرير التلقائي بالواجهة
+                  prompterEditText = findViewById(R.id.prompterEditText)
+                  scrollView = findViewById(R.id.scrollView)
 
                   ActivityCompat.requestPermissions(this, permissions, REQUEST_RECORD_AUDIO_PERMISSION)
 
                   recordButton.setOnClickListener {
                       if (isRecording) {
                           stopRecordingProcess()
+                          stopVoiceFollower()
                       } else {
                           if (permissionToRecordAccepted) {
                               startRecordingProcess()
+                              startVoiceFollower()
                           } else {
                               Toast.makeText(this, "Permission required to record audio", Toast.LENGTH_SHORT).show()
                           }
                       }
                   }
+
+                  // تهيئة مستشعر الصوت الذكي للغة العربية والإنجليزية تلقائياً
+                  initializeSpeechRecognizer()
               }
 
               override fun onRequestPermissionsResult(
@@ -128,7 +144,7 @@ jobs:
 
                   audioRecord?.startRecording()
                   isRecording = true
-                  statusTextView.text = "Status: Recording with Noise Gate..."
+                  statusTextView.text = "Status: Follower Active..."
                   recordButton.text = "Stop"
 
                   rawAudioFile = File(getExternalFilesDir(null), "vox_raw_recording.pcm")
@@ -192,15 +208,105 @@ jobs:
                   audioRecord?.release()
                   audioRecord = null
                   recordingThread = null
-                  statusTextView.text = "Status: Recording Saved"
+                  statusTextView.text = "Status: Stopped"
                   recordButton.text = "Record"
                   Toast.makeText(this, "Saved to: ${rawAudioFile?.absolutePath}", Toast.LENGTH_LONG).show()
               }
+
+              // ==========================================
+              // أجزاء المحاكي الصوتي الذكي (Voice Follower)
+              // ==========================================
+
+              private fun initializeSpeechRecognizer() {
+                  if (SpeechRecognizer.isRecognitionAvailable(this)) {
+                      speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+                      recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                          putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                          putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+                          putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true) // جلب النتائج لحظة بنطوقها
+                      }
+
+                      speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+                          override fun onReadyForSpeech(params: Bundle?) {}
+                          override fun onBeginningOfSpeech() {}
+                          override fun onRmsChanged(rmsdB: Float) {}
+                          override fun onBufferReceived(buffer: ByteArray?) {}
+                          override fun onEndOfSpeech() {}
+                          override fun onError(error: Int) {
+                              // إعادة التشغيل التلقائي في حال التوقف المؤقت للاستمرار في القراءة
+                              if (isRecording) {
+                                  speechRecognizer?.startListening(recognizerIntent)
+                              }
+                          }
+
+                          override fun onResults(results: Bundle?) {
+                              processRecognizedText(results)
+                              if (isRecording) {
+                                  speechRecognizer?.startListening(recognizerIntent)
+                              }
+                          }
+
+                          override fun onPartialResults(partialResults: Bundle?) {
+                              processRecognizedText(partialResults)
+                          }
+
+                          override fun onEvent(eventType: Int, params: Bundle?) {}
+                      })
+                  }
+              }
+
+              private fun startVoiceFollower() {
+                  runOnUiThread {
+                      speechRecognizer?.startListening(recognizerIntent)
+                  }
+              }
+
+              private fun stopVoiceFollower() {
+                  runOnUiThread {
+                      speechRecognizer?.stopListening()
+                  }
+              }
+
+              private fun processRecognizedText(bundle: Bundle?) {
+                  val matches = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                  if (!matches.isNullOrEmpty()) {
+                      val spokenText = matches[0].lowercase(Locale.getDefault())
+                      scrollTextToMatch(spokenText)
+                  }
+              }
+
+              private fun scrollTextToMatch(spokenText: String) {
+                  val fullText = prompterEditText.text.toString().lowercase(Locale.getDefault())
+                  val words = spokenText.split(" ")
+                  
+                  // البحث عن آخر كلمة تم نطقها داخل النص الكامل للملقن
+                  if (words.isNotEmpty()) {
+                      val lastWord = words.last()
+                      val wordIndex = fullText.indexOf(lastWord)
+                      
+                      if (wordIndex != -1) {
+                          // حساب الإحداثي الصادي للسطر الذي يحتوي على الكلمة المقروءة للتمرير إليه
+                          val layout = prompterEditText.layout
+                          if (layout != null) {
+                              val line = layout.getLineForOffset(wordIndex)
+                              val yCoordinate = layout.getLineTop(line)
+                              
+                              // تمرير الشاشة بسلاسة للسطر المقروء
+                              scrollView.smoothScrollTo(0, yCoordinate)
+                          }
+                      }
+                  }
+              }
+
+              override fun onDestroy() {
+                  super.onDestroy()
+                  speechRecognizer?.destroy()
+              }
           }
           EOF
-          
-          # 3. حفظ ودفع التعديل النظيف والمكتمل
+
+          # 3. حفظ ودفع التعديلات
           git add app/src/main/java/com/example/voxprompter/MainActivity.kt
-          git commit -m "Success: Restore MainActivity.kt directly to stable version" || echo "No changes"
+          git commit -m "Step 1: Integrate Voice Follower Autoscroll with SpeechRecognizer" || echo "No changes"
           git push origin main
           
